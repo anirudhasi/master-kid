@@ -1,0 +1,7 @@
+{
+  "name": "master-kids-api",
+  "version": "1.0.0",
+  "description": "Azure Functions API for Master Kids",
+  "main": "chat/index.js",
+  "dependencies": {}
+}
