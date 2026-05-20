@@ -37,13 +37,17 @@ jobs:
         working-directory: apps/web
         run: npm run build
 
-      - name: Get OIDC Token
-        uses: actions/github-script@v7
+      - name: Install OIDC Client
+        run: npm install @actions/core@1.6.0 @actions/http-client
+
+      - name: Get Id Token
+        uses: actions/github-script@v6
         id: idtoken
         with:
           script: |
-            const token = await core.getIDToken('api://AzureADTokenExchange')
-            core.setOutput('token', token)
+            const coredemo = require('@actions/core')
+            return await coredemo.getIDToken()
+          result-encoding: string
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
@@ -53,25 +57,14 @@ jobs:
           api_location: "apps/web/api"
           output_location: "dist"
           skip_app_build: true
-          github_id_token: ${{ steps.idtoken.outputs.token }}
+          github_id_token: ${{ steps.idtoken.outputs.result }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     name: Close Pull Request Job
-    permissions:
-      id-token: write
-      contents: read
     steps:
-      - name: Get OIDC Token
-        uses: actions/github-script@v7
-        id: idtoken
-        with:
-          script: |
-            const token = await core.getIDToken('api://AzureADTokenExchange')
-            core.setOutput('token', token)
       - name: Close Pull Request
         uses: Azure/static-web-apps-deploy@v1
         with:
           action: "close"
-          github_id_token: ${{ steps.idtoken.outputs.token }}
