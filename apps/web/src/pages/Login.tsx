@@ -945,7 +945,7 @@ export default function Login() {
                 {[1,2,3,4,5].map(s => <Star key={s} size={11} fill="#FBBF24" color="#FBBF24" />)}
               </div>
               <div style={{ fontSize: 11, color: '#64748B', fontFamily: FONT }}>
-                <strong style={{ color: '#94A3B8' }}>2,400+ families</strong> tracking progress
+                <strong style={{ color: '#94A3B8' }}>2,500+ families</strong> tracking progress
               </div>
             </div>
           </div>
@@ -973,7 +973,7 @@ export default function Login() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 24, padding: '10px 14px', borderRadius: 10, background: '#F8FAFC', border: '1px solid #E2E8F0' }}>
               <Users size={13} color="#94A3B8" />
               <span style={{ fontSize: 12, color: '#94A3B8', fontFamily: FONT }}>
-                <strong style={{ color: '#0F172A' }}>2,400+ families</strong> across 12 cities · CBSE, ICSE &amp; IB
+                <strong style={{ color: '#0F172A' }}>2,500+ families</strong> across 12 cities · CBSE, ICSE &amp; IB
               </span>
             </div>
           )}
