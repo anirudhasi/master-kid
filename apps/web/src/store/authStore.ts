@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH'
+
 // ── Per-kid onboarding data ────────────────────────────────────────────────────
 export interface KidOnboardingData {
   section: string
@@ -36,8 +38,24 @@ interface UserAccount {
   adminName: string
   adminAvatar: string
   adminPhotoUrl?: string
+  role: UserRole
   kids: KidProfile[]
   createdAt: number
+}
+
+// ── Per-phone OTP attempt tracking ────────────────────────────────────────────
+export interface PhoneAttemptState {
+  failedOtpCount: number
+  otpLockedUntil: number    // epoch ms; 0 = not locked
+  resendCount: number
+  resendLockedUntil: number // epoch ms; 0 = not locked
+}
+
+const DEFAULT_ATTEMPTS: PhoneAttemptState = {
+  failedOtpCount: 0,
+  otpLockedUntil: 0,
+  resendCount: 0,
+  resendLockedUntil: 0,
 }
 
 // ── Store interface ────────────────────────────────────────────────────────────
@@ -53,19 +71,23 @@ export interface AuthStore {
   step: 'phone' | 'otp' | 'setup' | 'profiles'
   demoOtp: string
 
+  // Lockout/attempt tracking, persisted per phone
+  phoneAttempts: Record<string, PhoneAttemptState>
+
   // Flat read-through of accounts[activePhone] (backward compat with all pages)
   adminName: string
   adminAvatar: string
   adminPhotoUrl?: string
+  role: UserRole
   kids: KidProfile[]
 
   // Active kid in current session
   activeKidId: string | null
 
   // Actions
-  submitPhone:    (phone: string) => string
-  verifyOtp:      (code: string) => boolean
-  completeSetup:  (name: string, avatar: string, photoUrl?: string) => void
+  submitPhone:    (phone: string) => { otp: string; locked: boolean; lockedUntil: number }
+  verifyOtp:      (code: string) => { success: boolean; locked: boolean; lockedUntil: number; attemptsLeft: number }
+  completeSetup:  (name: string, avatar: string, role: UserRole, photoUrl?: string) => void
   updateAdmin:    (patch: { adminName?: string; adminAvatar?: string; adminPhotoUrl?: string }) => void
   selectProfile:  (kidId: string | null) => void
   addKid:         (kid: Omit<KidProfile, 'id' | 'isOnboarded'>) => void
@@ -74,6 +96,7 @@ export interface AuthStore {
   removeKid:      (kidId: string) => void
   logout:         () => void
   goToProfiles:   () => void
+  getPhoneAttempts: (phone: string) => PhoneAttemptState
 }
 
 function randomOtp() {
@@ -83,6 +106,11 @@ function randomOtp() {
 function normalizePhone(raw: string): string {
   return raw.replace(/\D/g, '').slice(-10)
 }
+
+const OTP_MAX_FAILS    = 5
+const OTP_LOCK_MS      = 15 * 60 * 1000  // 15 minutes
+const RESEND_MAX       = 3
+const RESEND_LOCK_MS   = 10 * 60 * 1000  // 10 minutes
 
 const BLANK_SESSION = {
   isAuthenticated: false,
@@ -95,6 +123,7 @@ const BLANK_SESSION = {
   adminName: '',
   adminAvatar: '👨',
   adminPhotoUrl: undefined as string | undefined,
+  role: 'PARENT' as UserRole,
   kids: [] as KidProfile[],
 }
 
@@ -102,45 +131,109 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       accounts: {},
+      phoneAttempts: {},
       ...BLANK_SESSION,
 
       submitPhone(displayPhone) {
-        const otp        = randomOtp()
         const normalized = normalizePhone(displayPhone)
-        set({ phone: displayPhone, pendingPhone: normalized, step: 'otp', demoOtp: otp })
-        return otp
+        const now        = Date.now()
+        const attempts   = get().phoneAttempts[normalized] ?? { ...DEFAULT_ATTEMPTS }
+
+        // Resend lockout check
+        if (attempts.resendCount >= RESEND_MAX && attempts.resendLockedUntil > now) {
+          return { otp: '', locked: true, lockedUntil: attempts.resendLockedUntil }
+        }
+
+        const otp       = randomOtp()
+        const newCount  = attempts.resendLockedUntil <= now ? 1 : attempts.resendCount + 1
+        const lockUntil = newCount >= RESEND_MAX ? now + RESEND_LOCK_MS : 0
+
+        set(s => ({
+          phone: displayPhone,
+          pendingPhone: normalized,
+          step: 'otp',
+          demoOtp: otp,
+          phoneAttempts: {
+            ...s.phoneAttempts,
+            [normalized]: {
+              ...attempts,
+              resendCount: newCount,
+              resendLockedUntil: lockUntil,
+            },
+          },
+        }))
+        return { otp, locked: false, lockedUntil: 0 }
       },
 
       verifyOtp(code) {
-        const { demoOtp, pendingPhone, accounts } = get()
-        if (code !== demoOtp && code !== '000000') return false
+        const { demoOtp, pendingPhone, accounts, phoneAttempts } = get()
+        const now      = Date.now()
+        const attempts = phoneAttempts[pendingPhone] ?? { ...DEFAULT_ATTEMPTS }
 
-        const existing = accounts[pendingPhone]
-        if (existing) {
-          // Returning user — load their account into flat fields
-          set({
-            isAuthenticated: true,
-            activePhone: pendingPhone,
-            step: 'profiles',
-            adminName: existing.adminName,
-            adminAvatar: existing.adminAvatar,
-            adminPhotoUrl: existing.adminPhotoUrl,
-            kids: existing.kids,
-          })
-        } else {
-          // New user — needs profile setup
-          set({ step: 'setup' })
+        // Already locked?
+        if (attempts.otpLockedUntil > now) {
+          return { success: false, locked: true, lockedUntil: attempts.otpLockedUntil, attemptsLeft: 0 }
         }
-        return true
+
+        const correct = code === demoOtp || code === '000000'
+
+        if (correct) {
+          const existing = accounts[pendingPhone]
+          const clearedAttempts = { ...DEFAULT_ATTEMPTS }
+
+          if (existing) {
+            set(s => ({
+              isAuthenticated: true,
+              activePhone: pendingPhone,
+              step: 'profiles',
+              adminName: existing.adminName,
+              adminAvatar: existing.adminAvatar,
+              adminPhotoUrl: existing.adminPhotoUrl,
+              role: existing.role ?? 'PARENT',
+              kids: existing.kids,
+              phoneAttempts: { ...s.phoneAttempts, [pendingPhone]: clearedAttempts },
+            }))
+          } else {
+            set(s => ({
+              step: 'setup',
+              phoneAttempts: { ...s.phoneAttempts, [pendingPhone]: clearedAttempts },
+            }))
+          }
+          return { success: true, locked: false, lockedUntil: 0, attemptsLeft: OTP_MAX_FAILS }
+        }
+
+        // Wrong code — increment counter
+        const newCount   = attempts.failedOtpCount + 1
+        const nowLocked  = newCount >= OTP_MAX_FAILS
+        const lockUntil  = nowLocked ? now + OTP_LOCK_MS : attempts.otpLockedUntil
+
+        set(s => ({
+          phoneAttempts: {
+            ...s.phoneAttempts,
+            [pendingPhone]: {
+              ...attempts,
+              failedOtpCount: newCount,
+              otpLockedUntil: lockUntil,
+            },
+          },
+        }))
+
+        return {
+          success: false,
+          locked: nowLocked,
+          lockedUntil: lockUntil,
+          attemptsLeft: Math.max(0, OTP_MAX_FAILS - newCount),
+        }
       },
 
-      completeSetup(name, avatar, photoUrl) {
+      completeSetup(name, avatar, role, photoUrl) {
         const { pendingPhone } = get()
         const newAccount: UserAccount = {
           phone: pendingPhone,
           adminName: name,
           adminAvatar: avatar,
           adminPhotoUrl: photoUrl,
+          role,
           kids: [],
           createdAt: Date.now(),
         }
@@ -152,7 +245,12 @@ export const useAuthStore = create<AuthStore>()(
           adminName: name,
           adminAvatar: avatar,
           adminPhotoUrl: photoUrl,
+          role,
           kids: [],
+          phoneAttempts: {
+            ...s.phoneAttempts,
+            [pendingPhone]: { ...DEFAULT_ATTEMPTS },
+          },
         }))
       },
 
@@ -232,14 +330,17 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout() {
-        // Clear session but keep accounts map — returning users get their data back
         set({ ...BLANK_SESSION })
       },
 
       goToProfiles() {
         set({ activeKidId: null })
       },
+
+      getPhoneAttempts(phone) {
+        return get().phoneAttempts[normalizePhone(phone)] ?? { ...DEFAULT_ATTEMPTS }
+      },
     }),
-    { name: 'mk-auth-v2' }   // v2 clears old single-user localStorage
+    { name: 'mk-auth-v2' }
   )
 )
