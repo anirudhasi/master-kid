@@ -23,6 +23,7 @@ import Blog from '@/pages/Blog'
 import FunHub from '@/pages/FunHub'
 import DailyDigest from '@/pages/DailyDigest'
 import Storyboard from '@/pages/Storyboard'
+import Academic from '@/pages/Academic'
 import Subscription from '@/pages/Subscription'
 import NotFound from '@/pages/NotFound'
 import { useAuthStore } from '@/store/authStore'
@@ -31,7 +32,7 @@ import { useSubscriptionStore, isSubscriptionActive } from '@/store/subscription
 // Routes that only make sense with a child selected. Without one, we bounce to
 // the profile picker so the user chooses whose journey they're looking at.
 const CHILD_ONLY_ROUTES = [
-  '/child', '/profile', '/storyboard', '/syllabus', '/schedule', '/plan',
+  '/child', '/profile', '/storyboard', '/academic', '/syllabus', '/schedule', '/plan',
   '/worksheets', '/olympiads', '/resources', '/digest', '/fun', '/assistant',
 ]
 
@@ -64,6 +65,7 @@ function AppShell() {
         <Routes>
           <Route path="/child"      element={<ChildDashboard />} />
           <Route path="/storyboard" element={<Storyboard />} />
+          <Route path="/academic"   element={<Academic />} />
           <Route path="/parent"     element={<ParentDashboard />} />
           <Route path="/tutor"      element={<TutorPortal />} />
           <Route path="/tutors"     element={<TutorMarketplace />} />

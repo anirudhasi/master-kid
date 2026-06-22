@@ -20,8 +20,9 @@ const CHILD_NAV: NavSection[] = [
     items: [
       { icon: LayoutDashboard, label: 'Dashboard',          href: '/child'      },
       { icon: Images,          label: 'Storyboard',         href: '/storyboard' },
+      { icon: BookOpen,        label: 'Academics',          href: '/academic'   },
       { icon: User,            label: 'Profile',            href: '/profile'    },
-      { icon: BookOpen,        label: 'Syllabus & Progress', href: '/syllabus'  },
+      { icon: GraduationCap,   label: 'Syllabus & Progress', href: '/syllabus' },
       { icon: CalendarDays,    label: 'Weekly Schedule',     href: '/schedule'  },
       { icon: ClipboardList,   label: 'Learning Plan',       href: '/plan'      },
     ],
