@@ -20,7 +20,7 @@ import Olympiads from '@/pages/Olympiads'
 import Worksheets from '@/pages/Worksheets'
 import Resources from '@/pages/Resources'
 import Blog from '@/pages/Blog'
-import FunHub from '@/pages/FunHub'
+import Knowledge from '@/pages/Knowledge'
 import DailyDigest from '@/pages/DailyDigest'
 import Storyboard from '@/pages/Storyboard'
 import Academic from '@/pages/Academic'
@@ -88,7 +88,7 @@ function AppShell() {
           <Route path="/worksheets" element={<Worksheets />} />
           <Route path="/resources"  element={<Resources />} />
           <Route path="/blog"       element={<Blog />} />
-          <Route path="/fun"        element={<FunHub />} />
+          <Route path="/fun"        element={<Knowledge />} />
           <Route path="/digest"     element={<DailyDigest />} />
           <Route path="/404"        element={<NotFound />} />
           <Route path="*"           element={<Navigate to="/404" replace />} />
