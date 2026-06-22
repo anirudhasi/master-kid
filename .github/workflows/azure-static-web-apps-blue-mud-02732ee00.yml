@@ -25,6 +25,11 @@ jobs:
           node-version: '20'
 
       - name: Build web app
+        env:
+          # Set these as GitHub repo secrets to enable admin login on Azure.
+          # (Repo → Settings → Secrets and variables → Actions.)
+          VITE_ADMIN_PHONE: ${{ secrets.VITE_ADMIN_PHONE }}
+          VITE_ADMIN_PASSWORD_HASH: ${{ secrets.VITE_ADMIN_PASSWORD_HASH }}
         run: |
           cd apps/web
           npm install

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, Shield, Users, Star, Sparkles, ChevronLeft, Plus, Trash2, Eye, Camera, LogOut } from 'lucide-react'
 import { useAuthStore, type UserRole, type KidProfile } from '@/store/authStore'
 import { useSubscriptionStore, isSubscriptionActive, daysRemaining, type Subscription } from '@/store/subscriptionStore'
+import { isAdminPhone, verifyAdmin } from '@/lib/adminAuth'
 
 // ── Design tokens (matches MasterKids_Login_Module_Spec) ───────────────────────
 const P  = '#6C63FF'
@@ -37,15 +38,28 @@ function useCountdown(until: number) {
 
 // ── Step 1 — Phone entry ───────────────────────────────────────────────────────
 function PhoneStep() {
-  const { submitPhone } = useAuthStore()
+  const navigate = useNavigate()
+  const { submitPhone, adminLogin } = useAuthStore()
   const [raw, setRaw]   = useState('')
   const [err, setErr]   = useState('')
   const [otp, setOtp]   = useState('')
   const [sent, setSent] = useState(false)
+  const [pw, setPw]       = useState('')
+  const [pwErr, setPwErr] = useState('')
+  const [pwBusy, setPwBusy] = useState(false)
 
   const digits  = raw.replace(/\D/g, '').slice(0, 10)
   const display = digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits
   const valid   = digits.length === 10
+  const adminMode = isAdminPhone(digits)
+
+  const handleAdmin = async () => {
+    setPwBusy(true)
+    const ok = await verifyAdmin(digits, pw)
+    setPwBusy(false)
+    if (ok) { adminLogin(); navigate('/admin') }
+    else setPwErr('Incorrect admin password.')
+  }
 
   const handleSend = async () => {
     if (!valid) { setErr('Please enter a valid 10-digit mobile number.'); return }
@@ -113,33 +127,51 @@ function PhoneStep() {
         {err && <p style={{ fontSize: 11.5, color: '#DC2626', marginTop: 5, fontWeight: 600 }}>{err}</p>}
       </div>
 
-      {sent && otp && (
-        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
-          style={{ padding: '12px 16px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 20 }}>🔑</span>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', fontFamily: FONT }}>Beta OTP for +91 {display}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: '#D97706', letterSpacing: '0.2em', fontFamily: FONT }}>{otp}</div>
-            <div style={{ fontSize: 10, color: '#B45309' }}>SMS is disabled in beta · or type 000000</div>
+      {adminMode ? (
+        <div>
+          <div style={{ padding: '10px 14px', borderRadius: 10, background: '#EEF2FF', border: '1px solid #C7D2FE', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Shield size={16} color={P} />
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: '#3730A3', fontFamily: FONT }}>Admin account — enter your password</span>
           </div>
-        </motion.div>
-      )}
+          <input type="password" value={pw} onChange={e => { setPw(e.target.value); setPwErr('') }} onKeyDown={e => e.key === 'Enter' && handleAdmin()} placeholder="Admin password" autoFocus
+            style={{ width: '100%', height: 54, borderRadius: 12, border: `1.5px solid ${pwErr ? '#FECACA' : '#DCE8F5'}`, padding: '0 16px', fontSize: 15, fontWeight: 600, color: '#0F172A', outline: 'none', fontFamily: FONT, boxSizing: 'border-box', marginBottom: pwErr ? 6 : 12 }} />
+          {pwErr && <p style={{ fontSize: 11.5, color: '#DC2626', marginBottom: 10, fontWeight: 600 }}>{pwErr}</p>}
+          <button onClick={handleAdmin} disabled={!pw || pwBusy}
+            style={{ width: '100%', height: 54, borderRadius: 12, border: 'none', background: pw ? 'linear-gradient(135deg,#0F172A,#312E81)' : '#E2E8F0', color: pw ? '#fff' : '#94A3B8', fontSize: 15, fontWeight: 800, cursor: pw && !pwBusy ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontFamily: FONT }}>
+            <Shield size={15} /> {pwBusy ? 'Verifying…' : 'Sign in as Admin'}
+          </button>
+        </div>
+      ) : (
+        <>
+          {sent && otp && (
+            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+              style={{ padding: '12px 16px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 20 }}>🔑</span>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', fontFamily: FONT }}>Beta OTP for +91 {display}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: '#D97706', letterSpacing: '0.2em', fontFamily: FONT }}>{otp}</div>
+                <div style={{ fontSize: 10, color: '#B45309' }}>SMS is disabled in beta · or type 000000</div>
+              </div>
+            </motion.div>
+          )}
 
-      <button
-        onClick={handleSend}
-        disabled={!valid}
-        style={{
-          width: '100%', height: 54, borderRadius: 12, border: 'none',
-          background: valid ? `linear-gradient(135deg,${P},#9B59FF)` : '#E2E8F0',
-          color: valid ? '#fff' : '#94A3B8', fontSize: 15, fontWeight: 800,
-          cursor: valid ? 'pointer' : 'not-allowed',
-          boxShadow: valid ? `0 4px 20px ${PS}` : 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          transition: 'all 0.2s', fontFamily: FONT,
-        }}>
-        <Phone size={15} />
-        {sent ? 'Resend OTP' : 'Send OTP'}
-      </button>
+          <button
+            onClick={handleSend}
+            disabled={!valid}
+            style={{
+              width: '100%', height: 54, borderRadius: 12, border: 'none',
+              background: valid ? `linear-gradient(135deg,${P},#9B59FF)` : '#E2E8F0',
+              color: valid ? '#fff' : '#94A3B8', fontSize: 15, fontWeight: 800,
+              cursor: valid ? 'pointer' : 'not-allowed',
+              boxShadow: valid ? `0 4px 20px ${PS}` : 'none',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'all 0.2s', fontFamily: FONT,
+            }}>
+            <Phone size={15} />
+            {sent ? 'Resend OTP' : 'Send OTP'}
+          </button>
+        </>
+      )}
 
       <p style={{ fontSize: 11.5, color: '#94A3B8', textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
         By continuing, you agree to our{' '}

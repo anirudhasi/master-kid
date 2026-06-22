@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   BarChart, Bar, PieChart, Pie, Cell,
@@ -6,7 +7,9 @@ import {
 import {
   Users, Baby, GraduationCap, IndianRupee, Rss, CreditCard, Shield,
   Search, Trash2, Ban, RotateCcw, TrendingUp, Activity as ActivityIcon, History,
+  UserPlus, X, Lock,
 } from 'lucide-react'
+import { GRADE_LADDER } from '@/lib/grades'
 import { useAuthStore } from '@/store/authStore'
 import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { useStoryboardStore } from '@/store/storyboardStore'
@@ -77,6 +80,12 @@ export default function Admin() {
           <h1 style={{ fontSize: 25, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em' }}>Admin Console</h1>
           <div style={{ fontSize: 13, color: '#64748B' }}>Platform overview, controls & monitoring</div>
         </div>
+      </div>
+
+      {/* Privacy posture */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderRadius: 11, background: '#F0FDF4', border: '1px solid #BBF7D0', marginTop: 16, fontSize: 12, color: '#15803D' }}>
+        <Lock size={15} />
+        <span><strong>Privacy-first admin.</strong> Phone numbers are masked; children's photos, notes, certificates and parent↔coach messages are never shown here. Admin sees only operational data (names, class, status, counts) needed to manage the platform — per DPDP/COPPA.</span>
       </div>
 
       {/* KPI cards */}
@@ -185,7 +194,9 @@ function UserManagement({ accounts, children, coaches, courses }: { accounts: an
   const [tab, setTab] = useState<'parents' | 'children' | 'coaches'>('parents')
   const [q, setQ] = useState('')
   const [confirm, setConfirm] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const match = (s: string) => s.toLowerCase().includes(q.toLowerCase())
+  const addLabel = tab === 'parents' ? 'Add parent' : tab === 'children' ? 'Add student' : 'Add teacher/coach'
 
   return (
     <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EEF0F5', padding: 16, marginBottom: 26 }}>
@@ -195,11 +206,14 @@ function UserManagement({ accounts, children, coaches, courses }: { accounts: an
             <button key={t} onClick={() => setTab(t)} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: FONT, fontSize: 12.5, fontWeight: 800, textTransform: 'capitalize', background: tab === t ? '#fff' : 'transparent', color: tab === t ? P : '#64748B', boxShadow: tab === t ? '0 1px 4px rgba(15,23,42,0.1)' : 'none' }}>{t}</button>
           ))}
         </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #E2E8F0', minWidth: 180 }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 9, border: '1px solid #E2E8F0', minWidth: 160 }}>
           <Search size={14} color="#94A3B8" />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…" style={{ border: 'none', outline: 'none', fontFamily: FONT, fontSize: 13, flex: 1, background: 'transparent' }} />
         </div>
+        <button onClick={() => setAdding(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px', borderRadius: 9, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg,${P},#9B59FF)`, color: '#fff', fontSize: 12.5, fontWeight: 800, fontFamily: FONT }}><UserPlus size={14} /> {addLabel}</button>
       </div>
+
+      <AnimatePresence>{adding && <AddUserModal tab={tab} accounts={accounts} onClose={() => setAdding(false)} />}</AnimatePresence>
 
       {tab === 'parents' && (
         <Table head={['Name', 'Phone', 'Role', 'Kids', 'Status', '']}>
@@ -207,7 +221,7 @@ function UserManagement({ accounts, children, coaches, courses }: { accounts: an
             const sus = admin.suspendedAccounts[a.phone]
             return (
               <Row key={a.phone}>
-                <Cell2 bold>{a.adminName || '—'}</Cell2><Cell2>+91 {a.phone}</Cell2><Cell2>{a.role}</Cell2><Cell2>{a.kids.length}</Cell2>
+                <Cell2 bold>{a.adminName || '—'}</Cell2><Cell2 title="Masked for privacy">+91 {maskPhone(a.phone)}</Cell2><Cell2>{a.role}</Cell2><Cell2>{a.kids.length}</Cell2>
                 <Cell2><StatusPill sus={sus} /></Cell2>
                 <Cell2 right>
                   <Actions sus={sus} onToggle={() => admin.toggleAccount(a.phone)} confirming={confirm === a.phone} onRemoveAsk={() => setConfirm(a.phone)} onRemoveCancel={() => setConfirm(null)} onRemove={() => { removeAccount(a.phone); admin.log('Removed account', a.phone); setConfirm(null) }} />
@@ -321,6 +335,73 @@ function Table({ head, children }: { head: string[]; children: React.ReactNode }
   )
 }
 function Row({ children }: { children: React.ReactNode }) { return <tr style={{ borderTop: '1px solid #F1F5F9' }}>{children}</tr> }
-function Cell2({ children, bold, right }: { children: React.ReactNode; bold?: boolean; right?: boolean }) {
-  return <td style={{ padding: '10px', fontSize: 13, color: bold ? '#0F172A' : '#475569', fontWeight: bold ? 800 : 600, textAlign: right ? 'right' : 'left', whiteSpace: 'nowrap' }}>{children}</td>
+function Cell2({ children, bold, right, title }: { children: React.ReactNode; bold?: boolean; right?: boolean; title?: string }) {
+  return <td title={title} style={{ padding: '10px', fontSize: 13, color: bold ? '#0F172A' : '#475569', fontWeight: bold ? 800 : 600, textAlign: right ? 'right' : 'left', whiteSpace: 'nowrap' }}>{children}</td>
 }
+
+// Privacy: never show full contact numbers in the admin console.
+const maskPhone = (p: string) => (p && p.length >= 4 ? `${p.slice(0, 2)}••••${p.slice(-2)}` : '••••')
+
+// Admin adds a parent / student / teacher from any login.
+function AddUserModal({ tab, accounts, onClose }: { tab: 'parents' | 'children' | 'coaches'; accounts: any[]; onClose: () => void }) {
+  const addAccount = useAuthStore(s => s.adminAddAccount)
+  const addChild = useAuthStore(s => s.adminAddChild)
+  const admin = useAdminStore()
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [parent, setParent] = useState(accounts[0]?.phone ?? '')
+  const [grade, setGrade] = useState('Class 4')
+  const [err, setErr] = useState('')
+  const isChild = tab === 'children'
+  const title = tab === 'parents' ? 'Add parent' : isChild ? 'Add student' : 'Add teacher / coach'
+
+  const save = () => {
+    setErr('')
+    if (isChild) {
+      if (!name.trim() || !parent) { setErr('Choose a parent and enter the student name.'); return }
+      addChild(parent, { name: name.trim(), grade, age: 9, school: '', avatar: '🧒', color: '#6C63FF', colorLight: '#EEECFF', board: 'CBSE', xpTotal: 0, streakDays: 0 })
+      admin.log('Added student', name.trim())
+    } else {
+      const digits = phone.replace(/\D/g, '').slice(-10)
+      if (!name.trim() || digits.length !== 10) { setErr('Enter a name and a 10-digit phone.'); return }
+      addAccount(digits, name.trim(), tab === 'coaches' ? 'COACH' : 'PARENT')
+      admin.log(tab === 'coaches' ? 'Added coach' : 'Added parent', name.trim())
+    }
+    onClose()
+  }
+
+  const inp: React.CSSProperties = { width: '100%', padding: '10px 12px', borderRadius: 9, border: '1.5px solid #E2E8F0', fontSize: 13.5, fontFamily: FONT, outline: 'none', boxSizing: 'border-box', marginBottom: 12 }
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+      style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <motion.div initial={{ scale: 0.96, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0 }} onClick={e => e.stopPropagation()}
+        style={{ width: '100%', maxWidth: 420, background: '#fff', borderRadius: 18, padding: 22, fontFamily: FONT }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <h3 style={{ fontSize: 17, fontWeight: 900, color: '#0F172A' }}>{title}</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}><X size={18} /></button>
+        </div>
+        <label style={lbl}>Full name</label>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder={isChild ? 'Student name' : 'Full name'} style={inp} />
+        {isChild ? (
+          <>
+            <label style={lbl}>Parent account</label>
+            <select value={parent} onChange={e => setParent(e.target.value)} style={inp}>
+              {accounts.length === 0 && <option value="">No parents yet — add one first</option>}
+              {accounts.map(a => <option key={a.phone} value={a.phone}>{a.adminName || a.phone} (+91 {maskPhone(a.phone)})</option>)}
+            </select>
+            <label style={lbl}>Class</label>
+            <select value={grade} onChange={e => setGrade(e.target.value)} style={inp}>{GRADE_LADDER.map(g => <option key={g}>{g}</option>)}</select>
+          </>
+        ) : (
+          <>
+            <label style={lbl}>Mobile number</label>
+            <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit phone" inputMode="numeric" style={inp} />
+          </>
+        )}
+        {err && <div style={{ fontSize: 12, color: '#DC2626', fontWeight: 700, marginBottom: 10 }}>{err}</div>}
+        <button onClick={save} style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: 'none', cursor: 'pointer', background: `linear-gradient(135deg,${P},#9B59FF)`, color: '#fff', fontSize: 14, fontWeight: 800, fontFamily: FONT }}>{title}</button>
+      </motion.div>
+    </motion.div>
+  )
+}
+const lbl: React.CSSProperties = { fontSize: 11, fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 5 }

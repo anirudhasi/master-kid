@@ -1,8 +1,9 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService, isMockAuth } from '@/services/authService'
+import { ADMIN_PHONE } from '@/lib/env'
 
-export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH'
+export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH' | 'ADMIN'
 
 // ── Per-kid onboarding data ────────────────────────────────────────────────────
 export interface KidOnboardingData {
@@ -85,8 +86,14 @@ export interface AuthStore {
   // Active kid in current session
   activeKidId: string | null
 
+  // Platform admin (gated console access)
+  isAdmin: boolean
+
   // Actions
   init:           () => Promise<void>
+  adminLogin:     () => void
+  adminAddAccount:(phone: string, name: string, role: UserRole) => void
+  adminAddChild:  (phone: string, kid: Omit<KidProfile, 'id' | 'isOnboarded'>) => void
   submitPhone:    (phone: string) => Promise<{ otp: string; locked: boolean; lockedUntil: number; error?: string }>
   verifyOtp:      (code: string) => Promise<{ success: boolean; locked: boolean; lockedUntil: number; attemptsLeft: number; error?: string }>
   completeSetup:  (name: string, avatar: string, role: UserRole, photoUrl?: string) => void
@@ -114,6 +121,7 @@ const RESEND_LOCK_MS   = 10 * 60 * 1000  // 10 minutes
 
 const BLANK_SESSION = {
   isAuthenticated: false,
+  isAdmin: false,
   step: 'phone' as const,
   phone: '',
   pendingPhone: '',
@@ -379,6 +387,43 @@ export const useAuthStore = create<AuthStore>()(
           return phone === s.activePhone
             ? { accounts, kids: newKids, activeKidId: s.activeKidId === kidId ? null : s.activeKidId }
             : { accounts }
+        })
+      },
+
+      adminLogin() {
+        set({
+          ...BLANK_SESSION,
+          isAuthenticated: true,
+          isAdmin: true,
+          step: 'profiles',
+          role: 'ADMIN',
+          activePhone: ADMIN_PHONE ? normalizePhone(ADMIN_PHONE) : 'admin',
+          adminName: 'Administrator',
+          adminAvatar: '🛡️',
+        })
+      },
+
+      adminAddAccount(phone, name, role) {
+        const normalized = normalizePhone(phone)
+        if (!normalized) return
+        set(s => {
+          if (s.accounts[normalized]) return s
+          const account: UserAccount = {
+            phone: normalized, adminName: name, adminAvatar: '👤', role, kids: [], createdAt: Date.now(),
+          }
+          return { accounts: { ...s.accounts, [normalized]: account } }
+        })
+      },
+
+      adminAddChild(phone, kid) {
+        const normalized = normalizePhone(phone)
+        set(s => {
+          const acct = s.accounts[normalized]
+          if (!acct) return s
+          const newKid: KidProfile = { ...kid, id: `kid-${Date.now()}`, isOnboarded: false }
+          const newKids = [...acct.kids, newKid]
+          const accounts = { ...s.accounts, [normalized]: { ...acct, kids: newKids } }
+          return normalized === s.activePhone ? { accounts, kids: newKids } : { accounts }
         })
       },
 

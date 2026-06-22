@@ -32,3 +32,14 @@ export const PAYMENTS_TEST_SKIP = env.VITE_PAYMENTS_TEST_SKIP !== 'false'
 
 /** Default country code for phone OTP (India-first). */
 export const DEFAULT_COUNTRY_CODE = '+91'
+
+/**
+ * Platform-admin login. The admin signs in with this phone + a password; we
+ * compare a SHA-256 hash (never the plaintext). Values are injected at build
+ * time (env / GitHub secret), not committed. If unset, admin login is disabled.
+ * NOTE: a client-side hash check is exposable in the bundle — for hardened
+ * deployments verify server-side in a SWA Function (see /api).
+ */
+export const ADMIN_PHONE = env.VITE_ADMIN_PHONE
+export const ADMIN_PASSWORD_HASH = env.VITE_ADMIN_PASSWORD_HASH
+export const hasAdminLogin = Boolean(ADMIN_PHONE && ADMIN_PASSWORD_HASH)

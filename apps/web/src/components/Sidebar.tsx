@@ -129,7 +129,11 @@ export default function Sidebar() {
     navigate('/login')
   }
 
-  const navSections = isAdmin ? PARENT_NAV : CHILD_NAV
+  // Platform-admin (gated). Hide the Admin Console for everyone else.
+  const isPlatformAdmin = useAuthStore(s => s.isAdmin)
+  const navSections = (isAdmin ? PARENT_NAV : CHILD_NAV)
+    .map(sec => ({ ...sec, items: sec.items.filter(it => it.href !== '/admin' || isPlatformAdmin) }))
+    .filter(sec => sec.items.length > 0)
 
   const NavItems = () => (
     <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>

@@ -42,8 +42,13 @@ const CHILD_ONLY_ROUTES = [
 
 function AppShell() {
   const loc = useLocation()
-  const { activeKidId, kids } = useAuthStore()
+  const { activeKidId, kids, isAdmin } = useAuthStore()
   const sub = useSubscriptionStore(s => (activeKidId ? s.subs[activeKidId] : undefined))
+
+  // Guard: the Admin Console is for the platform admin only.
+  if (loc.pathname === '/admin' && !isAdmin) {
+    return <Navigate to="/parent" replace />
+  }
 
   // Guard: child-scoped routes require a selected child → otherwise the picker.
   if (activeKidId === null && CHILD_ONLY_ROUTES.includes(loc.pathname)) {
