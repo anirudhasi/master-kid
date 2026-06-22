@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import RequireAuth from '@/components/RequireAuth'
 import Login from '@/pages/Login'
@@ -27,9 +27,22 @@ import NotFound from '@/pages/NotFound'
 import { useAuthStore } from '@/store/authStore'
 import { useSubscriptionStore, isSubscriptionActive } from '@/store/subscriptionStore'
 
+// Routes that only make sense with a child selected. Without one, we bounce to
+// the profile picker so the user chooses whose journey they're looking at.
+const CHILD_ONLY_ROUTES = [
+  '/child', '/profile', '/syllabus', '/schedule', '/plan',
+  '/worksheets', '/olympiads', '/resources', '/digest', '/fun', '/assistant',
+]
+
 function AppShell() {
+  const loc = useLocation()
   const { activeKidId, kids } = useAuthStore()
   const sub = useSubscriptionStore(s => (activeKidId ? s.subs[activeKidId] : undefined))
+
+  // Guard: child-scoped routes require a selected child → otherwise the picker.
+  if (activeKidId === null && CHILD_ONLY_ROUTES.includes(loc.pathname)) {
+    return <Navigate to="/login" replace />
+  }
 
   // Child-scoped gate: every child needs an active subscription/trial first,
   // then onboarding, before the app opens. (Admin view has activeKidId === null.)

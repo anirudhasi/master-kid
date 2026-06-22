@@ -5,69 +5,91 @@ import { useAuthStore } from '@/store/authStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import {
   LayoutDashboard, User, BookOpen, CalendarDays, FileText,
-  Bot, Brain, Trophy, ClipboardList,
+  Bot, Trophy, ClipboardList,
   Users, Rss, GraduationCap, Search, Tag,
   Menu, X, ChevronRight, LogOut, Shield,
   Library, Newspaper, Smile, Bell,
 } from 'lucide-react'
 
-const NAV = [
+type NavSection = { label: string; items: { icon: typeof LayoutDashboard; label: string; href: string }[] }
+
+// Child shell — everything scoped to the selected child.
+const CHILD_NAV: NavSection[] = [
   {
-    label: 'STUDENT',
+    label: 'LEARNING',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard',          href: '/child'      },
-      { icon: User,            label: 'My Profile',         href: '/profile'    },
+      { icon: User,            label: 'Profile',            href: '/profile'    },
+      { icon: BookOpen,        label: 'Syllabus & Progress', href: '/syllabus'  },
+      { icon: CalendarDays,    label: 'Weekly Schedule',     href: '/schedule'  },
+      { icon: ClipboardList,   label: 'Learning Plan',       href: '/plan'      },
     ],
   },
   {
-    label: 'ACADEMICS',
+    label: 'PRACTICE',
     items: [
-      { icon: BookOpen,      label: 'Syllabus & Progress', href: '/syllabus'   },
-      { icon: CalendarDays,  label: 'Weekly Schedule',     href: '/schedule'   },
-      { icon: FileText,      label: 'Worksheets',          href: '/worksheets' },
-      { icon: Trophy,        label: 'Olympiads',           href: '/olympiads'  },
-      { icon: Library,       label: 'Worksheet Library',   href: '/resources'  },
-      { icon: Brain,         label: 'Knowledge Base',      href: '/assistant'  },
-      { icon: Bot,           label: 'AI Tutor Miko',       href: '/assistant?tab=chat' },
-      { icon: ClipboardList, label: 'Learning Plan',       href: '/plan'       },
+      { icon: FileText, label: 'Worksheets',        href: '/worksheets' },
+      { icon: Trophy,   label: 'Olympiads',         href: '/olympiads'  },
+      { icon: Library,  label: 'Worksheet Library', href: '/resources'  },
     ],
   },
   {
     label: 'DISCOVER',
     items: [
-      { icon: Bell,      label: 'Daily Digest',   href: '/digest' },
-      { icon: Smile,     label: 'Fun Hub',        href: '/fun'    },
-      { icon: Newspaper, label: 'Blog & Articles', href: '/blog'  },
+      { icon: Bell,      label: 'Daily Digest',    href: '/digest'    },
+      { icon: Smile,     label: 'Fun & Knowledge', href: '/fun'       },
+      { icon: Bot,       label: 'AI Tutor Miko',   href: '/assistant' },
+      { icon: Newspaper, label: 'Blog & Articles', href: '/blog'      },
     ],
   },
   {
-    label: 'FAMILY',
+    label: 'COMMUNITY',
     items: [
-      { icon: Users, label: 'Parent View',  href: '/parent'  },
-      { icon: Rss,   label: 'Social Feed',  href: '/social'  },
+      { icon: Rss, label: 'Social Feed', href: '/social' },
+    ],
+  },
+]
+
+// Parent / admin shell — manage the family, no single child in context.
+const PARENT_NAV: NavSection[] = [
+  {
+    label: 'PARENT',
+    items: [
+      { icon: LayoutDashboard, label: 'Parent Dashboard', href: '/parent' },
+      { icon: Users,           label: 'Manage Children',  href: '/login'  },
+      { icon: Rss,             label: 'Social Feed',      href: '/social' },
     ],
   },
   {
     label: 'TUTORS',
     items: [
-      { icon: GraduationCap, label: 'Tutor Portal',  href: '/tutor'  },
-      { icon: Search,        label: 'Find Tutors',   href: '/tutors' },
+      { icon: Search,        label: 'Find Tutors',  href: '/tutors' },
+      { icon: GraduationCap, label: 'Tutor Portal', href: '/tutor'  },
     ],
   },
   {
     label: 'PLATFORM',
     items: [
-      { icon: Tag, label: 'Pricing', href: '/pricing' },
+      { icon: Tag,     label: 'Pricing',         href: '/pricing' },
+      { icon: Newspaper, label: 'Blog & Articles', href: '/blog'  },
     ],
   },
 ]
 
-const MOBILE_TABS = [
+const CHILD_TABS = [
   { icon: LayoutDashboard, label: 'Home',     href: '/child'     },
   { icon: BookOpen,        label: 'Syllabus', href: '/syllabus'  },
-  { icon: CalendarDays,    label: 'Schedule', href: '/schedule'  },
-  { icon: Bot,             label: 'Miko AI',  href: '/assistant' },
+  { icon: Trophy,          label: 'Olympiad', href: '/olympiads' },
+  { icon: Smile,           label: 'Fun',      href: '/fun'       },
   { icon: User,            label: 'Profile',  href: '/profile'   },
+]
+
+const PARENT_TABS = [
+  { icon: LayoutDashboard, label: 'Home',     href: '/parent'  },
+  { icon: Users,           label: 'Children', href: '/login'   },
+  { icon: Rss,             label: 'Social',   href: '/social'  },
+  { icon: Search,          label: 'Tutors',   href: '/tutors'  },
+  { icon: Tag,             label: 'Plans',    href: '/pricing' },
 ]
 
 export default function Sidebar() {
@@ -103,9 +125,11 @@ export default function Sidebar() {
     navigate('/login')
   }
 
+  const navSections = isAdmin ? PARENT_NAV : CHILD_NAV
+
   const NavItems = () => (
     <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
-      {NAV.map(section => (
+      {navSections.map(section => (
         <div key={section.label} style={{ padding: '10px 8px 2px' }}>
           <div style={{
             fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
@@ -373,7 +397,7 @@ export default function Sidebar() {
 
       {/* ── Mobile bottom tab bar ─────────────────────── */}
       <nav className="mobile-tabbar">
-        {MOBILE_TABS.map(tab => {
+        {(isAdmin ? PARENT_TABS : CHILD_TABS).map(tab => {
           const active = loc.pathname === tab.href
           const Icon   = tab.icon
           return (
