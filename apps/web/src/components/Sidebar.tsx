@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import {
   LayoutDashboard, User, BookOpen, CalendarDays, FileText,
-  Bot, Trophy, ClipboardList,
+  Bot, Trophy, ClipboardList, Images,
   Users, Rss, GraduationCap, Search, Tag,
   Menu, X, ChevronRight, LogOut, Shield,
   Library, Newspaper, Smile, Bell,
@@ -19,6 +19,7 @@ const CHILD_NAV: NavSection[] = [
     label: 'LEARNING',
     items: [
       { icon: LayoutDashboard, label: 'Dashboard',          href: '/child'      },
+      { icon: Images,          label: 'Storyboard',         href: '/storyboard' },
       { icon: User,            label: 'Profile',            href: '/profile'    },
       { icon: BookOpen,        label: 'Syllabus & Progress', href: '/syllabus'  },
       { icon: CalendarDays,    label: 'Weekly Schedule',     href: '/schedule'  },
