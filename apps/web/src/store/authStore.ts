@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { authService, isMockAuth } from '@/services/authService'
 
 export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH'
 
@@ -85,8 +86,9 @@ export interface AuthStore {
   activeKidId: string | null
 
   // Actions
-  submitPhone:    (phone: string) => { otp: string; locked: boolean; lockedUntil: number }
-  verifyOtp:      (code: string) => { success: boolean; locked: boolean; lockedUntil: number; attemptsLeft: number }
+  init:           () => Promise<void>
+  submitPhone:    (phone: string) => Promise<{ otp: string; locked: boolean; lockedUntil: number; error?: string }>
+  verifyOtp:      (code: string) => Promise<{ success: boolean; locked: boolean; lockedUntil: number; attemptsLeft: number; error?: string }>
   completeSetup:  (name: string, avatar: string, role: UserRole, photoUrl?: string) => void
   updateAdmin:    (patch: { adminName?: string; adminAvatar?: string; adminPhotoUrl?: string }) => void
   selectProfile:  (kidId: string | null) => void
@@ -97,10 +99,6 @@ export interface AuthStore {
   logout:         () => void
   goToProfiles:   () => void
   getPhoneAttempts: (phone: string) => PhoneAttemptState
-}
-
-function randomOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000))
 }
 
 function normalizePhone(raw: string): string {
@@ -134,7 +132,35 @@ export const useAuthStore = create<AuthStore>()(
       phoneAttempts: {},
       ...BLANK_SESSION,
 
-      submitPhone(displayPhone) {
+      // Reconcile persisted state with the real auth backend on app load.
+      // Mock mode trusts the persisted store; Supabase mode trusts the live session.
+      async init() {
+        if (isMockAuth) return
+        const session = await authService.getSession()
+        if (!session) {
+          set({ isAuthenticated: false, step: 'phone', activePhone: '' })
+        } else {
+          const phone10  = normalizePhone(session.phone)
+          const existing = get().accounts[phone10]
+          set({
+            isAuthenticated: true,
+            activePhone: phone10,
+            step: 'profiles',
+            ...(existing && {
+              adminName: existing.adminName,
+              adminAvatar: existing.adminAvatar,
+              adminPhotoUrl: existing.adminPhotoUrl,
+              role: existing.role ?? 'PARENT',
+              kids: existing.kids,
+            }),
+          })
+        }
+        authService.onChange(s => {
+          if (!s) set({ ...BLANK_SESSION })
+        })
+      },
+
+      async submitPhone(displayPhone) {
         const normalized = normalizePhone(displayPhone)
         const now        = Date.now()
         const attempts   = get().phoneAttempts[normalized] ?? { ...DEFAULT_ATTEMPTS }
@@ -144,7 +170,11 @@ export const useAuthStore = create<AuthStore>()(
           return { otp: '', locked: true, lockedUntil: attempts.resendLockedUntil }
         }
 
-        const otp       = randomOtp()
+        const res = await authService.requestOtp(normalized)
+        if (!res.ok) {
+          return { otp: '', locked: false, lockedUntil: 0, error: res.error ?? 'Could not send OTP' }
+        }
+
         const newCount  = attempts.resendLockedUntil <= now ? 1 : attempts.resendCount + 1
         const lockUntil = newCount >= RESEND_MAX ? now + RESEND_LOCK_MS : 0
 
@@ -152,7 +182,7 @@ export const useAuthStore = create<AuthStore>()(
           phone: displayPhone,
           pendingPhone: normalized,
           step: 'otp',
-          demoOtp: otp,
+          demoOtp: res.devOtp ?? '',
           phoneAttempts: {
             ...s.phoneAttempts,
             [normalized]: {
@@ -162,11 +192,11 @@ export const useAuthStore = create<AuthStore>()(
             },
           },
         }))
-        return { otp, locked: false, lockedUntil: 0 }
+        return { otp: res.devOtp ?? '', locked: false, lockedUntil: 0 }
       },
 
-      verifyOtp(code) {
-        const { demoOtp, pendingPhone, accounts, phoneAttempts } = get()
+      async verifyOtp(code) {
+        const { pendingPhone, accounts, phoneAttempts } = get()
         const now      = Date.now()
         const attempts = phoneAttempts[pendingPhone] ?? { ...DEFAULT_ATTEMPTS }
 
@@ -175,7 +205,8 @@ export const useAuthStore = create<AuthStore>()(
           return { success: false, locked: true, lockedUntil: attempts.otpLockedUntil, attemptsLeft: 0 }
         }
 
-        const correct = code === demoOtp || code === '000000'
+        const result  = await authService.verifyOtp(pendingPhone, code)
+        const correct = result.ok
 
         if (correct) {
           const existing = accounts[pendingPhone]
@@ -330,6 +361,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout() {
+        void authService.signOut()
         set({ ...BLANK_SESSION })
       },
 

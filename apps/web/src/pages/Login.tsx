@@ -46,9 +46,10 @@ function PhoneStep() {
   const display = digits.length > 5 ? `${digits.slice(0, 5)} ${digits.slice(5)}` : digits
   const valid   = digits.length === 10
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!valid) { setErr('Please enter a valid 10-digit mobile number.'); return }
-    const result = submitPhone(`+91 ${display}`)
+    const result = await submitPhone(`+91 ${display}`)
+    if (result.error) { setErr(result.error); return }
     if (result.locked) {
       const mins = Math.ceil((result.lockedUntil - Date.now()) / 60000)
       setErr(`Too many resend attempts. Try again in ${mins} min.`)
@@ -200,8 +201,8 @@ function OtpStep({ onBack }: { onBack: () => void }) {
     else boxRefs[Math.min(pasted.length, 5)].current?.focus()
   }
 
-  const handleVerify = (code: string) => {
-    const result = verifyOtp(code)
+  const handleVerify = async (code: string) => {
+    const result = await verifyOtp(code)
     if (result.success) return  // step changes → component transitions out
     if (result.locked) {
       setErr('Account locked. Too many wrong attempts.')
