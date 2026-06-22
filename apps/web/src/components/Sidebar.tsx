@@ -73,8 +73,9 @@ const PARENT_NAV: NavSection[] = [
   {
     label: 'PLATFORM',
     items: [
-      { icon: Tag,     label: 'Pricing',         href: '/pricing' },
-      { icon: Newspaper, label: 'Blog & Articles', href: '/blog'  },
+      { icon: Shield,    label: 'Admin Console',   href: '/admin'   },
+      { icon: Tag,       label: 'Pricing',         href: '/pricing' },
+      { icon: Newspaper, label: 'Blog & Articles', href: '/blog'    },
     ],
   },
 ]

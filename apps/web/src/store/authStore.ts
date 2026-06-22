@@ -96,6 +96,8 @@ export interface AuthStore {
   updateKid:      (kidId: string, patch: Partial<KidProfile>) => void
   markOnboarded:  (kidId: string, data: KidOnboardingData) => void
   removeKid:      (kidId: string) => void
+  adminRemoveAccount: (phone: string) => void
+  adminRemoveChild:   (phone: string, kidId: string) => void
   logout:         () => void
   goToProfiles:   () => void
   getPhoneAttempts: (phone: string) => PhoneAttemptState
@@ -357,6 +359,26 @@ export const useAuthStore = create<AuthStore>()(
               ? { ...s.accounts, [s.activePhone]: { ...account, kids: newKids } }
               : s.accounts,
           }
+        })
+      },
+
+      adminRemoveAccount(phone) {
+        set(s => {
+          const accounts = { ...s.accounts }
+          delete accounts[phone]
+          return phone === s.activePhone ? { ...BLANK_SESSION, accounts } : { accounts }
+        })
+      },
+
+      adminRemoveChild(phone, kidId) {
+        set(s => {
+          const acct = s.accounts[phone]
+          if (!acct) return s
+          const newKids = acct.kids.filter(k => k.id !== kidId)
+          const accounts = { ...s.accounts, [phone]: { ...acct, kids: newKids } }
+          return phone === s.activePhone
+            ? { accounts, kids: newKids, activeKidId: s.activeKidId === kidId ? null : s.activeKidId }
+            : { accounts }
         })
       },
 
