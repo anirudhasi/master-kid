@@ -5,6 +5,23 @@
 
 ---
 
+## ⚠️ Revamp in progress (2026-06-22)
+
+The product is being revamped **child-centric** per `Change request.docx`. The live implementation
+is **web-first on Azure**, not the original AWS / React-Native plan. The current blueprint lives in
+`docs/`:
+- `docs/ARCHITECTURE.md` — target architecture + scale path to 1M users
+- `docs/DATA_MODEL.md` — Supabase/Postgres schema + RLS for all modules
+- `docs/MODULES.md` — the 13 modules synthesized from the Change Request (scope per module)
+- `docs/AZURE_COST.md` — cost model (target < $10/mo) + scaling cost path
+
+**When `docs/` and the sections below disagree, `docs/` wins.** The single production client today
+is `apps/web` (React + Vite on Azure Static Web Apps). The native mobile (Expo) track and the AWS
+plan below are deferred/historical. Locked decisions: Supabase free tier as backend, one
+consolidated web app, Azure SWA hosting, target running cost < $10/mo at MVP.
+
+---
+
 ## What This Product Is
 
 **Master-Kids** is a habit-forming daily progress tracking app for children (ages 5–14), built for the Indian market. It is a three-sided platform: Parents, Children, and Tutors.
@@ -23,18 +40,18 @@
 
 | Layer | Choice | Reason |
 |-------|--------|--------|
-| Mobile | React Native + Expo (managed workflow) | Single codebase iOS + Android, OTA updates |
-| Navigation | React Navigation v6 | Stack + bottom tabs |
+| **Primary client** | **Web — React 19 + Vite (PWA)** | One codebase, instant deploy, installable; native mobile is a later track |
+| Native mobile (later) | React Native + Expo | Deferred — web PWA covers the MVP |
+| Navigation | React Router v6 (web) | File/route-based |
 | State | Zustand (local) + React Query (server) | Lightweight, no boilerplate |
-| Styling | NativeWind (Tailwind for RN) | Consistent design tokens |
-| Backend | Node.js + TypeScript + Hono.js | Edge-compatible, lightweight |
-| Hosting | AWS Lambda (serverless) | Auto-scale, pay-per-use |
-| API | AWS API Gateway (REST) | Throttling, auth middleware |
-| Auth | Supabase Auth | OTP/SMS + Google OAuth, RLS built-in |
-| Database | PostgreSQL via Supabase | Row-level security for child data |
-| Cache | Upstash Redis | Serverless Redis, rate limiting |
-| Storage | AWS S3 + CloudFront | Audio files, CDN delivery |
-| Queue | AWS SQS FIFO → Lambda | Async AI processing, non-blocking |
+| Styling | Tailwind CSS + framer-motion | Design tokens + motion (flip cards, etc.) |
+| Backend / API | **Azure Static Web Apps managed Functions** (Node) | Serverless, $0 idle, scale-to-zero; secrets server-side only |
+| Hosting | **Azure Static Web Apps (Free tier)** | Web + API + global CDN + SSL at $0 |
+| Auth | Supabase Auth | Phone OTP + JWT, RLS built-in |
+| Database | **PostgreSQL via Supabase (Free tier)** | Row-level security, per-account isolation |
+| File storage | Supabase Storage → Azure Blob at scale | Photos, certificates, digital-book pages |
+| Cache (at scale) | Upstash Redis | Serverless Redis, rate limiting |
+| Queue (at scale) | Azure Service Bus → worker | Async AI processing, non-blocking |
 | STT | OpenAI Whisper API (or Deepgram) | Supports English + Hindi |
 | AI Structuring | Claude Haiku (Anthropic API) | High-volume, cost-optimised |
 | AI Summaries | Claude Sonnet (Anthropic API) | Quality parent summaries |
@@ -54,7 +71,8 @@
 | AI Evals | Braintrust | LLM output regression testing |
 | Load Testing | k6 | Lambda API performance |
 | WhatsApp | Twilio WhatsApp Business API | Ambient voice logging |
-| Cloud Region | AWS ap-south-1 (Mumbai) | India-first latency |
+| Cloud Region | Azure Central India (Pune) / South India | India-first latency |
+| AI (today) | OpenAI `gpt-4o-mini` via SWA Function `/api/chat` | In place now; migrate to Claude Haiku/Sonnet per rows above |
 
 ---
 

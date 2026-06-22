@@ -39,8 +39,5 @@ Thumbs.db
 # Azure Functions local settings (contains secrets)
 apps/web/api/local.settings.json
 
-# Expo / React Native
-apps/mobile/node_modules/
-apps/mobile/.expo/
-apps/mobile/android/
-apps/mobile/ios/
+# Office temp lock files
+~$*
