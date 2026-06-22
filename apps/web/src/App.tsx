@@ -11,7 +11,7 @@ import TutorPortal from '@/pages/TutorPortal'
 import TutorMarketplace from '@/pages/TutorMarketplace'
 import StudentProfile from '@/pages/StudentProfile'
 import LearningPlan from '@/pages/LearningPlan'
-import SocialFeed from '@/pages/SocialFeed'
+import Social from '@/pages/Social'
 import AIAssistant from '@/pages/AIAssistant'
 import Pricing from '@/pages/Pricing'
 import Syllabus from '@/pages/Syllabus'
@@ -73,7 +73,7 @@ function AppShell() {
           <Route path="/tutors"     element={<TutorMarketplace />} />
           <Route path="/profile"    element={<StudentProfile />} />
           <Route path="/plan"       element={<LearningPlan />} />
-          <Route path="/social"     element={<SocialFeed />} />
+          <Route path="/social"     element={<Social />} />
           <Route path="/assistant"  element={<AIAssistant />} />
           <Route path="/pricing"    element={<Pricing />} />
           <Route path="/syllabus"   element={<Syllabus />} />
