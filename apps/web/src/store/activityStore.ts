@@ -21,6 +21,7 @@ export interface Activity {
   coachToken?: string  // handshake token
   coachStatus: CoachStatus
   coachName?: string
+  enrollmentId?: string // links to a coach course enrollment once joined
   createdAt: number
 }
 

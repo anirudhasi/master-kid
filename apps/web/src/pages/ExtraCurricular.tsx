@@ -8,6 +8,9 @@ import { useAuthStore } from '@/store/authStore'
 import { useActivityStore, activitiesFor, type Activity } from '@/store/activityStore'
 import { activityService } from '@/services/activityService'
 import { ACTIVITY_TYPES, ACTIVITY_META, defaultCurriculum } from '@/data/activityCatalog'
+import { useCoachStore, PLAN_PRICING } from '@/store/coachStore'
+import { coachService } from '@/services/coachService'
+import { ChatThread } from '@/pages/Coach'
 
 const P = '#6C63FF'
 const FONT = "'Nunito', 'Inter', sans-serif"
@@ -171,18 +174,94 @@ function ActivityDetail({ activity, age, onBack, onDeleted }: { activity: Activi
         </div>
       </div>
 
+      {activity.coachStatus === 'linked' && activity.enrollmentId && (
+        <ParentCoachPanel enrollmentId={activity.enrollmentId} />
+      )}
+
       <style>{`@media (max-width: 760px){ .ec-grid { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   )
 }
 
+// Parent's window into the coach course: milestone progress (read-only),
+// secure 2-way messaging, and UPI payment.
+function ParentCoachPanel({ enrollmentId }: { enrollmentId: string }) {
+  const { activePhone, adminName } = useAuthStore()
+  const enrollment = useCoachStore(s => s.enrollments[enrollmentId])
+  const course = useCoachStore(s => (enrollment ? s.courses[enrollment.courseId] : undefined))
+  const messages = useCoachStore(s => s.messages[enrollmentId] ?? [])
+  const [msg, setMsg] = useState('')
+  if (!enrollment || !course) return null
+
+  const total = course.milestones.length
+  const done = Object.values(enrollment.progress).filter(p => p.status === 'done').length
+  const pct = total ? Math.round((done / total) * 100) : 0
+  const send = () => { if (!msg.trim()) return; void coachService.sendMessage(enrollmentId, { senderRole: 'parent', senderName: adminName || 'Parent', kind: 'note', body: msg.trim() }); setMsg('') }
+  const payUpi = () => {
+    const amt = PLAN_PRICING[course.plan].inr
+    const link = `upi://pay?pa=masterkids@upi&pn=${encodeURIComponent(course.coachName)}&am=${amt}&cu=INR&tn=${encodeURIComponent(course.title)}`
+    window.location.href = link
+  }
+
+  return (
+    <div style={{ marginTop: 22, background: '#fff', borderRadius: 16, border: '1px solid #EEF0F5', padding: 18, boxShadow: '0 1px 8px rgba(15,23,42,0.04)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+        <div>
+          <h2 style={{ fontSize: 16, fontWeight: 900, color: '#0F172A' }}>{course.title}</h2>
+          <div style={{ fontSize: 12, color: '#64748B' }}>Coach {course.coachName} · {pct}% complete</div>
+        </div>
+        {!enrollment.paid && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={payUpi} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 10, border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg,#16A34A,#22C55E)', color: '#fff', fontSize: 13, fontWeight: 800, fontFamily: FONT }}>Pay ₹{PLAN_PRICING[course.plan].inr} via UPI</button>
+            <button onClick={() => coachService.markPaid(enrollmentId)} style={ghostBtn}>Mark paid (test)</button>
+          </div>
+        )}
+        {enrollment.paid && <span style={{ fontSize: 11, fontWeight: 800, padding: '5px 11px', borderRadius: 9, background: '#DCFCE7', color: '#15803D' }}>✓ Paid · {PLAN_PRICING[course.plan].label}</span>}
+      </div>
+
+      {/* Milestone progress (read-only for parent) */}
+      {total > 0 && (
+        <div style={{ display: 'grid', gap: 8, marginBottom: 18 }}>
+          {course.milestones.map(m => {
+            const d = enrollment.progress[m.id]?.status === 'done'
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 11, background: d ? '#F0FDF4' : '#F8FAFC' }}>
+                <span style={{ fontSize: 16 }}>{d ? '✅' : '⏳'}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 800, color: '#0F172A' }}>{m.title}</div>
+                  {m.parentOutcome && <div style={{ fontSize: 11.5, color: '#64748B' }}>{m.parentOutcome}</div>}
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 800, color: d ? '#16A34A' : '#94A3B8' }}>{d ? 'Done' : 'In progress'}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Secure 2-way messaging */}
+      <h3 style={{ fontSize: 14, fontWeight: 900, color: '#0F172A', marginBottom: 10 }}>Messages with your coach</h3>
+      <ChatThread messages={messages} myRole="parent" value={msg} setValue={setMsg} onSend={send} />
+    </div>
+  )
+}
+
 function CoachCard({ activity }: { activity: Activity }) {
+  const { activePhone, adminName, activeKidId, kids } = useAuthStore()
   const [code, setCode] = useState('')
   const [copied, setCopied] = useState(false)
+  const [err, setErr] = useState('')
   const a = useActivityStore(s => s.activities[activity.id]) ?? activity  // live status
 
   const invite = () => void activityService.inviteCoach(a.id)
-  const link = () => { if (code.trim()) void activityService.linkCoach(a.id, code, 'Linked Coach') }
+  const link = () => {
+    if (!code.trim()) return
+    setErr('')
+    const kid = kids.find(k => k.id === activeKidId)
+    void activityService.linkCoach(a.id, code, {
+      childId: a.childId, childName: kid?.name ?? 'Child',
+      parentId: activePhone || 'guest', parentName: adminName || 'Parent',
+    }).then(res => { if (!res.ok) setErr(res.error ?? 'Could not link.') })
+  }
   const copy = () => { if (a.coachToken) navigator.clipboard?.writeText(a.coachToken).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }) }
 
   return (
@@ -208,9 +287,10 @@ function CoachCard({ activity }: { activity: Activity }) {
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 700, color: '#64748B', marginBottom: 5 }}>Have a code from a coach?</div>
             <div style={{ display: 'flex', gap: 6 }}>
-              <input value={code} onChange={e => setCode(e.target.value)} placeholder="MK-XXXX-XXXX" style={{ ...input, flex: 1 }} />
+              <input value={code} onChange={e => { setCode(e.target.value); setErr('') }} placeholder="MK-XXXX-XXXX" style={{ ...input, flex: 1 }} />
               <button onClick={link} style={{ padding: '0 14px', borderRadius: 9, border: 'none', background: P, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 800, fontFamily: FONT }}>Link</button>
             </div>
+            {err && <div style={{ fontSize: 11.5, color: '#DC2626', fontWeight: 700, marginTop: 6 }}>{err}</div>}
           </div>
         </div>
       )}

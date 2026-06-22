@@ -6,8 +6,11 @@
 import { supabase } from '@/lib/supabase'
 import { AUTH_PROVIDER } from '@/lib/env'
 import { useActivityStore, makeToken, type Activity } from '@/store/activityStore'
+import { coachService } from '@/services/coachService'
 
 export type NewActivity = Omit<Activity, 'id' | 'createdAt' | 'coachStatus'>
+
+export interface LinkResult { ok: boolean; error?: string }
 
 export interface ActivityService {
   add(a: NewActivity): Promise<Activity>
@@ -15,8 +18,8 @@ export interface ActivityService {
   remove(id: string): Promise<void>
   /** Parent generates a token to hand to a coach (status → pending). */
   inviteCoach(id: string): Promise<string>
-  /** Parent enters a code the coach gave them (status → linked). */
-  linkCoach(id: string, code: string, coachName?: string): Promise<void>
+  /** Parent enters a coach's join code → redeems it into a real enrollment. */
+  linkCoach(id: string, code: string, child: { childId: string; childName: string; parentId: string; parentName: string }): Promise<LinkResult>
   unlinkCoach(id: string): Promise<void>
 }
 
@@ -38,13 +41,17 @@ const base: ActivityService = {
     if (cur) store()._set({ ...cur, coachToken: token, coachStatus: 'pending' })
     return token
   },
-  async linkCoach(id, code, coachName) {
+  async linkCoach(id, code, child) {
     const cur = store().activities[id]
-    if (cur) store()._set({ ...cur, coachToken: code.trim().toUpperCase(), coachStatus: 'linked', coachName: coachName ?? 'Coach' })
+    if (!cur) return { ok: false, error: 'Activity not found' }
+    const res = await coachService.redeem(code, child)
+    if (!res.ok) return { ok: false, error: res.error }
+    store()._set({ ...cur, coachToken: code.trim().toUpperCase(), coachStatus: 'linked', coachName: res.coachName, enrollmentId: res.enrollmentId })
+    return { ok: true }
   },
   async unlinkCoach(id) {
     const cur = store().activities[id]
-    if (cur) store()._set({ ...cur, coachStatus: 'none', coachToken: undefined, coachName: undefined })
+    if (cur) store()._set({ ...cur, coachStatus: 'none', coachToken: undefined, coachName: undefined, enrollmentId: undefined })
   },
 }
 

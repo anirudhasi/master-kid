@@ -26,6 +26,7 @@ import Storyboard from '@/pages/Storyboard'
 import Academic from '@/pages/Academic'
 import Olympiad from '@/pages/Olympiad'
 import ExtraCurricular from '@/pages/ExtraCurricular'
+import Coach from '@/pages/Coach'
 import Subscription from '@/pages/Subscription'
 import NotFound from '@/pages/NotFound'
 import { useAuthStore } from '@/store/authStore'
@@ -72,6 +73,7 @@ function AppShell() {
           <Route path="/activities"  element={<ExtraCurricular />} />
           <Route path="/parent"     element={<ParentDashboard />} />
           <Route path="/tutor"      element={<TutorPortal />} />
+          <Route path="/coach"      element={<Coach />} />
           <Route path="/tutors"     element={<TutorMarketplace />} />
           <Route path="/profile"    element={<StudentProfile />} />
           <Route path="/plan"       element={<LearningPlan />} />

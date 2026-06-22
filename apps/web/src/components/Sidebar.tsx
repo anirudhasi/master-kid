@@ -64,10 +64,10 @@ const PARENT_NAV: NavSection[] = [
     ],
   },
   {
-    label: 'TUTORS',
+    label: 'TEACHING',
     items: [
-      { icon: Search,        label: 'Find Tutors',  href: '/tutors' },
-      { icon: GraduationCap, label: 'Tutor Portal', href: '/tutor'  },
+      { icon: GraduationCap, label: 'Coach Studio',  href: '/coach'  },
+      { icon: Search,        label: 'Find Coaches',  href: '/tutors' },
     ],
   },
   {
