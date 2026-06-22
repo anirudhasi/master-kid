@@ -24,6 +24,7 @@ import FunHub from '@/pages/FunHub'
 import DailyDigest from '@/pages/DailyDigest'
 import Storyboard from '@/pages/Storyboard'
 import Academic from '@/pages/Academic'
+import Olympiad from '@/pages/Olympiad'
 import Subscription from '@/pages/Subscription'
 import NotFound from '@/pages/NotFound'
 import { useAuthStore } from '@/store/authStore'
@@ -33,7 +34,7 @@ import { useSubscriptionStore, isSubscriptionActive } from '@/store/subscription
 // the profile picker so the user chooses whose journey they're looking at.
 const CHILD_ONLY_ROUTES = [
   '/child', '/profile', '/storyboard', '/academic', '/syllabus', '/schedule', '/plan',
-  '/worksheets', '/olympiads', '/resources', '/digest', '/fun', '/assistant',
+  '/worksheets', '/olympiad', '/olympiads', '/resources', '/digest', '/fun', '/assistant',
 ]
 
 function AppShell() {
@@ -66,6 +67,7 @@ function AppShell() {
           <Route path="/child"      element={<ChildDashboard />} />
           <Route path="/storyboard" element={<Storyboard />} />
           <Route path="/academic"   element={<Academic />} />
+          <Route path="/olympiad"    element={<Olympiad />} />
           <Route path="/parent"     element={<ParentDashboard />} />
           <Route path="/tutor"      element={<TutorPortal />} />
           <Route path="/tutors"     element={<TutorMarketplace />} />

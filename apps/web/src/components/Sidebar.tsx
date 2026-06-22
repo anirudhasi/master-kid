@@ -31,7 +31,7 @@ const CHILD_NAV: NavSection[] = [
     label: 'PRACTICE',
     items: [
       { icon: FileText, label: 'Worksheets',        href: '/worksheets' },
-      { icon: Trophy,   label: 'Olympiads',         href: '/olympiads'  },
+      { icon: Trophy,   label: 'Olympiad Practice', href: '/olympiad'   },
       { icon: Library,  label: 'Worksheet Library', href: '/resources'  },
     ],
   },
@@ -81,7 +81,7 @@ const PARENT_NAV: NavSection[] = [
 const CHILD_TABS = [
   { icon: LayoutDashboard, label: 'Home',     href: '/child'     },
   { icon: BookOpen,        label: 'Syllabus', href: '/syllabus'  },
-  { icon: Trophy,          label: 'Olympiad', href: '/olympiads' },
+  { icon: Trophy,          label: 'Olympiad', href: '/olympiad'  },
   { icon: Smile,           label: 'Fun',      href: '/fun'       },
   { icon: User,            label: 'Profile',  href: '/profile'   },
 ]
