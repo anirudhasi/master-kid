@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, Shield, Users, Star, Sparkles, ChevronLeft, Plus, Trash2, Eye, Camera, LogOut } from 'lucide-react'
 import { useAuthStore, type UserRole, type KidProfile } from '@/store/authStore'
+import { useSubscriptionStore, isSubscriptionActive, daysRemaining, type Subscription } from '@/store/subscriptionStore'
 
 // ── Design tokens (matches MasterKids_Login_Module_Spec) ───────────────────────
 const P  = '#6C63FF'
@@ -494,10 +495,23 @@ function SetupStep() {
   )
 }
 
+// Small subscription chip for a kid card: trial countdown / active / lapsed.
+function getSubChip(sub?: Subscription): { label: string; bg: string; color: string } | null {
+  if (!sub) return { label: 'No plan', bg: '#FEE2E2', color: '#B91C1C' }
+  if (sub.status === 'skipped_test') return { label: 'Test access', bg: '#E0E7FF', color: '#4338CA' }
+  if (!isSubscriptionActive(sub)) return { label: 'Expired', bg: '#FEE2E2', color: '#B91C1C' }
+  if (sub.status === 'trialing') {
+    const d = daysRemaining(sub)
+    return { label: `Trial · ${d}d left`, bg: '#DCFCE7', color: '#15803D' }
+  }
+  return { label: sub.plan === 'yearly' ? 'Yearly' : 'Active', bg: '#DCFCE7', color: '#15803D' }
+}
+
 // ── Step 4 — Profile selection ─────────────────────────────────────────────────
 function ProfilesStep() {
   const navigate = useNavigate()
   const { adminName, adminAvatar, adminPhotoUrl, kids, selectProfile, addKid, removeKid, logout, phone, role } = useAuthStore()
+  const subs = useSubscriptionStore(s => s.subs)
   const [showAdd, setShowAdd]       = useState(false)
   const [confirmDel, setConfirmDel] = useState<string | null>(null)
   const [uploading, setUploading]   = useState(false)
@@ -621,6 +635,7 @@ function ProfilesStep() {
               const nxp = kid.xpTotal >= 1500 ? 9999 : kid.xpTotal >= 500 ? 1500 : kid.xpTotal >= 100 ? 500 : 100
               const px  = kid.xpTotal >= 1500 ? 1500 : kid.xpTotal >= 500 ? 500 : kid.xpTotal >= 100 ? 100 : 0
               const pct = Math.min(100, Math.round(((kid.xpTotal - px) / (nxp - px)) * 100))
+              const subChip = getSubChip(subs[kid.id])
 
               return (
                 <div key={kid.id} style={{ position: 'relative' }}>
@@ -648,6 +663,9 @@ function ProfilesStep() {
                         <span style={{ fontSize: 10, padding: '1px 7px', borderRadius: 8, background: kid.colorLight, color: kid.color, fontWeight: 700, fontFamily: FONT }}>{kid.grade}</span>
                         {!kid.isOnboarded && (
                           <span style={{ fontSize: 9.5, padding: '1px 7px', borderRadius: 8, background: '#FEF3C7', color: '#D97706', fontWeight: 700, fontFamily: FONT }}>Setup needed</span>
+                        )}
+                        {subChip && (
+                          <span style={{ fontSize: 9.5, padding: '1px 7px', borderRadius: 8, background: subChip.bg, color: subChip.color, fontWeight: 700, fontFamily: FONT }}>{subChip.label}</span>
                         )}
                       </div>
                       {kid.school ? (

@@ -22,15 +22,22 @@ import Resources from '@/pages/Resources'
 import Blog from '@/pages/Blog'
 import FunHub from '@/pages/FunHub'
 import DailyDigest from '@/pages/DailyDigest'
+import Subscription from '@/pages/Subscription'
 import NotFound from '@/pages/NotFound'
 import { useAuthStore } from '@/store/authStore'
+import { useSubscriptionStore, isSubscriptionActive } from '@/store/subscriptionStore'
 
 function AppShell() {
   const { activeKidId, kids } = useAuthStore()
+  const sub = useSubscriptionStore(s => (activeKidId ? s.subs[activeKidId] : undefined))
 
-  // If a kid is selected but hasn't completed onboarding → show setup wizard
+  // Child-scoped gate: every child needs an active subscription/trial first,
+  // then onboarding, before the app opens. (Admin view has activeKidId === null.)
   if (activeKidId !== null) {
     const kid = kids.find(k => k.id === activeKidId)
+    if (kid && !isSubscriptionActive(sub)) {
+      return <Subscription />
+    }
     if (kid && !kid.isOnboarded) {
       return <KidOnboarding />
     }
