@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { useAppStore, getLevel } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useKidStore } from '@/hooks/useKidStore'
+import QuoteOfDay from '@/components/QuoteOfDay'
 
 const weekData = [
   { day: 'Mon', xp: 20, mins: 45 }, { day: 'Tue', xp: 35, mins: 60 },
@@ -75,6 +76,8 @@ export default function ParentDashboard() {
           {level.emoji} {level.name} · {xpTotal} XP
         </div>
       </motion.div>
+
+      <motion.div {...fade(0.02)} style={{ marginBottom: 20 }}><QuoteOfDay /></motion.div>
 
       {/* Child profile strip */}
       <motion.div {...fade(0.05)} className="card" style={{ padding: '16px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
