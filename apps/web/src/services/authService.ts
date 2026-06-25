@@ -40,18 +40,21 @@ export interface AuthService {
 const to10 = (raw: string) => raw.replace(/\D/g, '').slice(-10)
 const toE164 = (raw: string) =>
   raw.startsWith('+') ? raw : `${DEFAULT_COUNTRY_CODE}${to10(raw)}`
+const isEmail = (s: string) => s.includes('@')
+/** Normalize an identifier: lower-cased email, or last-10-digit phone. */
+const normId = (raw: string) => isEmail(raw) ? raw.trim().toLowerCase() : to10(raw)
 
 // ── Mock provider (no backend) ───────────────────────────────────────────────
 const pendingOtp = new Map<string, string>()
 
 const mockAuthService: AuthService = {
-  async requestOtp(phone10) {
+  async requestOtp(identifier) {
     const otp = String(Math.floor(100000 + Math.random() * 900000))
-    pendingOtp.set(to10(phone10), otp)
+    pendingOtp.set(normId(identifier), otp)
     return { ok: true, devOtp: otp }
   },
-  async verifyOtp(phone10, code) {
-    const key = to10(phone10)
+  async verifyOtp(identifier, code) {
+    const key = normId(identifier)
     const expected = pendingOtp.get(key)
     if (code === expected || code === '000000') {
       pendingOtp.delete(key)
@@ -75,18 +78,18 @@ const mockAuthService: AuthService = {
 // Requires a phone/SMS provider configured in the Supabase Auth dashboard
 // (e.g. MSG91/Twilio). Until then, AUTH_PROVIDER stays 'mock' automatically.
 const supabaseAuthService: AuthService = {
-  async requestOtp(phone10) {
+  async requestOtp(identifier) {
     if (!supabase) return { ok: false, error: 'Auth backend not configured' }
-    const { error } = await supabase.auth.signInWithOtp({ phone: toE164(phone10) })
+    const { error } = isEmail(identifier)
+      ? await supabase.auth.signInWithOtp({ email: identifier.trim().toLowerCase() })
+      : await supabase.auth.signInWithOtp({ phone: toE164(identifier) })
     return error ? { ok: false, error: error.message } : { ok: true }
   },
-  async verifyOtp(phone10, code) {
+  async verifyOtp(identifier, code) {
     if (!supabase) return { ok: false, error: 'Auth backend not configured' }
-    const { data, error } = await supabase.auth.verifyOtp({
-      phone: toE164(phone10),
-      token: code,
-      type: 'sms',
-    })
+    const { data, error } = isEmail(identifier)
+      ? await supabase.auth.verifyOtp({ email: identifier.trim().toLowerCase(), token: code, type: 'email' })
+      : await supabase.auth.verifyOtp({ phone: toE164(identifier), token: code, type: 'sms' })
     if (error) return { ok: false, error: error.message }
     return { ok: true, userId: data.user?.id }
   },
@@ -94,7 +97,8 @@ const supabaseAuthService: AuthService = {
     if (!supabase) return null
     const { data } = await supabase.auth.getSession()
     const u = data.session?.user
-    return u ? { userId: u.id, phone: to10(u.phone ?? '') } : null
+    if (!u) return null
+    return { userId: u.id, phone: u.email ? u.email.toLowerCase() : to10(u.phone ?? '') }
   },
   async signOut() {
     await supabase?.auth.signOut()
@@ -103,7 +107,7 @@ const supabaseAuthService: AuthService = {
     if (!supabase) return () => {}
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user
-      cb(u ? { userId: u.id, phone: to10(u.phone ?? '') } : null)
+      cb(u ? { userId: u.id, phone: u.email ? u.email.toLowerCase() : to10(u.phone ?? '') } : null)
     })
     return () => data.subscription.unsubscribe()
   },

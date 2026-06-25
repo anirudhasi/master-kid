@@ -30,6 +30,11 @@ jobs:
           # (Repo → Settings → Secrets and variables → Actions.)
           VITE_ADMIN_PHONE: ${{ secrets.VITE_ADMIN_PHONE }}
           VITE_ADMIN_PASSWORD_HASH: ${{ secrets.VITE_ADMIN_PASSWORD_HASH }}
+          # Supabase backend — when these two secrets are set, the app switches from
+          # in-browser mock storage to the real Postgres backend (durable, multi-device).
+          # The anon key is safe to expose (RLS-protected). Leave unset to stay in mock mode.
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           cd apps/web
           npm install
