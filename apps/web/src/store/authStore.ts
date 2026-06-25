@@ -95,6 +95,8 @@ export interface AuthStore {
   adminAddAccount:(phone: string, name: string, role: UserRole) => void
   adminAddChild:  (phone: string, kid: Omit<KidProfile, 'id' | 'isOnboarded'>) => void
   submitPhone:    (phone: string) => Promise<{ otp: string; locked: boolean; lockedUntil: number; error?: string }>
+  /** Generalized login — accepts an email or a phone as the identifier. */
+  submitIdentifier: (value: string) => Promise<{ otp: string; locked: boolean; lockedUntil: number; error?: string }>
   verifyOtp:      (code: string) => Promise<{ success: boolean; locked: boolean; lockedUntil: number; attemptsLeft: number; error?: string }>
   completeSetup:  (name: string, avatar: string, role: UserRole, photoUrl?: string) => void
   updateAdmin:    (patch: { adminName?: string; adminAvatar?: string; adminPhotoUrl?: string }) => void
@@ -112,6 +114,11 @@ export interface AuthStore {
 
 function normalizePhone(raw: string): string {
   return raw.replace(/\D/g, '').slice(-10)
+}
+
+/** Normalize either an email (lower-cased) or a phone (last 10 digits). */
+function normalizeId(raw: string): string {
+  return raw.includes('@') ? raw.trim().toLowerCase() : normalizePhone(raw)
 }
 
 const OTP_MAX_FAILS    = 5
@@ -200,6 +207,38 @@ export const useAuthStore = create<AuthStore>()(
               resendCount: newCount,
               resendLockedUntil: lockUntil,
             },
+          },
+        }))
+        return { otp: res.devOtp ?? '', locked: false, lockedUntil: 0 }
+      },
+
+      // Generalized: accepts an email or phone. Same OTP + lockout flow, but the
+      // identifier isn't digit-stripped (so emails survive intact).
+      async submitIdentifier(value) {
+        const normalized = normalizeId(value)
+        const now        = Date.now()
+        const attempts   = get().phoneAttempts[normalized] ?? { ...DEFAULT_ATTEMPTS }
+
+        if (attempts.resendCount >= RESEND_MAX && attempts.resendLockedUntil > now) {
+          return { otp: '', locked: true, lockedUntil: attempts.resendLockedUntil }
+        }
+
+        const res = await authService.requestOtp(normalized)
+        if (!res.ok) {
+          return { otp: '', locked: false, lockedUntil: 0, error: res.error ?? 'Could not send code' }
+        }
+
+        const newCount  = attempts.resendLockedUntil <= now ? 1 : attempts.resendCount + 1
+        const lockUntil = newCount >= RESEND_MAX ? now + RESEND_LOCK_MS : 0
+
+        set(s => ({
+          phone: value.trim(),
+          pendingPhone: normalized,
+          step: 'otp',
+          demoOtp: res.devOtp ?? '',
+          phoneAttempts: {
+            ...s.phoneAttempts,
+            [normalized]: { ...attempts, resendCount: newCount, resendLockedUntil: lockUntil },
           },
         }))
         return { otp: res.devOtp ?? '', locked: false, lockedUntil: 0 }

@@ -5,6 +5,8 @@ import { Phone, Shield, Users, Star, Sparkles, ChevronLeft, Plus, Trash2, Eye, C
 import { useAuthStore, type UserRole, type KidProfile } from '@/store/authStore'
 import { useSubscriptionStore, isSubscriptionActive, daysRemaining, type Subscription } from '@/store/subscriptionStore'
 import { isAdminPhone, verifyAdmin } from '@/lib/adminAuth'
+import { LOGIN_METHOD } from '@/lib/env'
+import { Mail } from 'lucide-react'
 
 // ── Design tokens (matches MasterKids_Login_Module_Spec) ───────────────────────
 const P  = '#6C63FF'
@@ -178,6 +180,76 @@ function PhoneStep() {
         <span style={{ color: P, fontWeight: 700, cursor: 'pointer' }}>Terms of Service</span>
         {' '}and{' '}
         <span style={{ color: P, fontWeight: 700, cursor: 'pointer' }}>Privacy Policy</span>
+      </p>
+    </motion.div>
+  )
+}
+
+// ── Step 1 (email) — Email entry (free, instant OTP) ───────────────────────────
+function EmailStep() {
+  const { submitIdentifier } = useAuthStore()
+  const [email, setEmail] = useState('')
+  const [err, setErr]     = useState('')
+  const [otp, setOtp]     = useState('')
+  const [sent, setSent]   = useState(false)
+  const [busy, setBusy]   = useState(false)
+
+  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+
+  const handleSend = async () => {
+    if (!valid) { setErr('Please enter a valid email address.'); return }
+    setBusy(true)
+    const result = await submitIdentifier(email.trim())
+    setBusy(false)
+    if (result.error) { setErr(result.error); return }
+    if (result.locked) {
+      const mins = Math.ceil((result.lockedUntil - Date.now()) / 60000)
+      setErr(`Too many attempts. Try again in ${mins} min.`); return
+    }
+    setOtp(result.otp); setSent(true); setErr('')
+  }
+
+  return (
+    <motion.div {...slide(1)} style={{ fontFamily: FONT }}>
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ width: 72, height: 72, borderRadius: 24, margin: '0 auto 16px', background: `linear-gradient(135deg,${P},#9B59FF)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, boxShadow: `0 8px 32px ${PS}` }}>✉️</div>
+        <h2 style={{ fontSize: 26, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', marginBottom: 6, fontFamily: FONT }}>Welcome to Master-Kids</h2>
+        <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>Enter your email to sign in or create a new account — we'll send a one-time code.</p>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email address</label>
+        <div style={{ display: 'flex', borderRadius: 10, overflow: 'hidden', border: `1.5px solid ${err ? '#FECACA' : valid ? P + '80' : '#DCE8F5'}`, transition: 'border-color 0.2s', height: 54 }}>
+          <div style={{ padding: '0 14px', background: '#F8FAFC', borderRight: '1px solid #E2E8F0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <Mail size={18} color="#94A3B8" />
+          </div>
+          <input value={email} onChange={e => { setEmail(e.target.value); setErr(''); setSent(false) }}
+            onKeyDown={e => e.key === 'Enter' && handleSend()} placeholder="you@example.com" inputMode="email" autoFocus
+            style={{ flex: 1, border: 'none', outline: 'none', padding: '0 16px', fontSize: 16, fontWeight: 600, color: '#0F172A', background: '#fff', fontFamily: FONT }} />
+          {valid && <div style={{ display: 'flex', alignItems: 'center', paddingRight: 14 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E' }} /></div>}
+        </div>
+        {err && <p style={{ fontSize: 11.5, color: '#DC2626', marginTop: 5, fontWeight: 600 }}>{err}</p>}
+      </div>
+
+      {sent && otp && (
+        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+          style={{ padding: '12px 16px', borderRadius: 10, background: '#FFFBEB', border: '1px solid #FDE68A', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 20 }}>🔑</span>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#92400E', fontFamily: FONT }}>Beta code for {email.trim()}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: '#D97706', letterSpacing: '0.2em', fontFamily: FONT }}>{otp}</div>
+            <div style={{ fontSize: 10, color: '#B45309' }}>Email is in beta · or type 000000</div>
+          </div>
+        </motion.div>
+      )}
+
+      <button onClick={handleSend} disabled={!valid || busy}
+        style={{ width: '100%', height: 54, borderRadius: 12, border: 'none', background: valid ? `linear-gradient(135deg,${P},#9B59FF)` : '#E2E8F0', color: valid ? '#fff' : '#94A3B8', fontSize: 15, fontWeight: 800, cursor: valid && !busy ? 'pointer' : 'not-allowed', boxShadow: valid ? `0 4px 20px ${PS}` : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.2s', fontFamily: FONT }}>
+        <Mail size={15} /> {busy ? 'Sending…' : sent ? 'Resend code' : 'Send code'}
+      </button>
+
+      <p style={{ fontSize: 11.5, color: '#94A3B8', textAlign: 'center', marginTop: 16, lineHeight: 1.6 }}>
+        By continuing, you agree to our <span style={{ color: P, fontWeight: 700, cursor: 'pointer' }}>Terms</span> and <span style={{ color: P, fontWeight: 700, cursor: 'pointer' }}>Privacy Policy</span>
       </p>
     </motion.div>
   )
@@ -1014,7 +1086,7 @@ export default function Login() {
           {step !== 'profiles' && <StepDots step={step} />}
 
           <AnimatePresence mode="wait">
-            {step === 'phone'    && <motion.div key="phone"    {...slide(1)}><PhoneStep /></motion.div>}
+            {step === 'phone'    && <motion.div key="phone"    {...slide(1)}>{LOGIN_METHOD === 'email' ? <EmailStep /> : <PhoneStep />}</motion.div>}
             {step === 'otp'      && <motion.div key="otp"      {...slide(1)}><OtpStep onBack={goBack} /></motion.div>}
             {step === 'setup'    && <motion.div key="setup"    {...slide(1)}><SetupStep /></motion.div>}
             {step === 'profiles' && <motion.div key="profiles" {...slide(1)}><ProfilesStep /></motion.div>}

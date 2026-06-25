@@ -34,6 +34,14 @@ export const PAYMENTS_TEST_SKIP = env.VITE_PAYMENTS_TEST_SKIP !== 'false'
 export const DEFAULT_COUNTRY_CODE = '+91'
 
 /**
+ * Login identifier. 'email' uses free/instant email OTP (no SMS provider needed);
+ * 'phone' uses SMS OTP (needs Twilio/MSG91). Defaults to 'email'.
+ * Override with VITE_LOGIN_METHOD=phone.
+ */
+export const LOGIN_METHOD: 'email' | 'phone' =
+  env.VITE_LOGIN_METHOD === 'phone' ? 'phone' : 'email'
+
+/**
  * Platform-admin login. The admin signs in with this phone + a password; we
  * compare a SHA-256 hash (never the plaintext). Values are injected at build
  * time (env / GitHub secret), not committed. If unset, admin login is disabled.
