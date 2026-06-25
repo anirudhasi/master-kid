@@ -7,6 +7,9 @@ import { useAppStore, getLevel } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import QuoteOfDay from '@/components/QuoteOfDay'
+import { useEngagementStore, todayState } from '@/store/engagementStore'
+import { buildDailyFeed, dayKey } from '@/lib/dailyFeed'
+import { GRADE_LADDER, currentGradeIndex } from '@/lib/grades'
 
 const weekData = [
   { day: 'Mon', xp: 20, mins: 45 }, { day: 'Tue', xp: 35, mins: 60 },
@@ -36,6 +39,53 @@ function StatCard({ icon: Icon, label, value, sub, color, bg }: any) {
       <div className="stat-value" style={{ color, marginBottom: 2 }}>{value}</div>
       {sub && <div style={{ fontSize: 12, color: '#9CA3AF' }}>{sub}</div>}
     </div>
+  )
+}
+
+// Read-only mirror of the child's daily challenge (feedback: parents asked to see it).
+function ParentDailyChallenge({ kid }: { kid: { id: string; name: string; grade?: string; onboarding?: { subjects?: string[] } } }) {
+  const byChild = useEngagementStore(s => s.byChild)
+  const grade = GRADE_LADDER[currentGradeIndex(kid.grade)]
+  const subjects = kid.onboarding?.subjects ?? []
+  const dk = dayKey()
+  const feed = buildDailyFeed(kid.id, grade, subjects, dk)
+  const { done } = todayState(byChild, kid.id, dk)
+
+  const tasks = [
+    { key: 'riddle',  icon: '🧩', label: 'Riddle of the day', detail: feed.riddle?.prompt },
+    { key: 'words',   icon: '📖', label: '5 new words',        detail: feed.words?.map(w => w.word).join(', ') },
+    { key: 'proverb', icon: '🦉', label: 'Proverb of the day', detail: feed.proverb?.prompt },
+    { key: 'game',    icon: '🎮', label: "Today's game",       detail: feed.game?.title ?? 'A quick brain game' },
+  ]
+  const completed = tasks.filter(t => done.includes(t.key)).length
+
+  return (
+    <motion.div {...fade(0.07)} className="card" style={{ padding: 20, marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, flexWrap: 'wrap', gap: 8 }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: '#111827' }}>
+          Today's Challenge <span style={{ fontWeight: 600, color: '#9CA3AF' }}>· {completed}/{tasks.length} done by {kid.name}</span>
+        </p>
+        <span style={{ fontSize: 11, color: '#9CA3AF' }}>👀 Read-only mirror of {kid.name}'s view</span>
+      </div>
+      <p style={{ fontSize: 12, color: '#6B7280', marginBottom: 14 }}>Focus: {feed.focus}</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 10 }}>
+        {tasks.map(t => {
+          const isDone = done.includes(t.key)
+          return (
+            <div key={t.key} style={{ padding: '10px 12px', borderRadius: 10, border: `1px solid ${isDone ? '#BBF7D0' : '#E8ECF4'}`, background: isDone ? '#F0FDF4' : '#fff' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 15 }}>{t.icon}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', flex: 1 }}>{t.label}</span>
+                {isDone
+                  ? <span style={{ fontSize: 10.5, fontWeight: 700, color: '#16A34A' }}>✓ Done</span>
+                  : <span style={{ fontSize: 10.5, color: '#9CA3AF' }}>Pending</span>}
+              </div>
+              {t.detail && <div style={{ fontSize: 11.5, color: '#6B7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.detail}</div>}
+            </div>
+          )
+        })}
+      </div>
+    </motion.div>
   )
 }
 
@@ -78,6 +128,8 @@ export default function ParentDashboard() {
       </motion.div>
 
       <motion.div {...fade(0.02)} style={{ marginBottom: 20 }}><QuoteOfDay /></motion.div>
+
+      {activeKid && <ParentDailyChallenge kid={activeKid} />}
 
       {/* Child profile strip */}
       <motion.div {...fade(0.05)} className="card" style={{ padding: '16px 24px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>

@@ -1,12 +1,14 @@
 import { useAuthStore } from '@/store/authStore'
 import { useKidsDataStore, EMPTY_KID_DATA } from '@/store/kidsDataStore'
-import type { SyllabusChapter, Mood } from '@/store/appStore'
+import type { SyllabusChapter, Mood, OlympiadExam } from '@/store/appStore'
 
 export function useKidStore() {
   const { activeKidId } = useAuthStore()
   const {
     kidsData,
     toggleTopicComplete, updateChapterStatus,
+    updateSubjectTextbook, toggleChapterInSchool,
+    ensureOlympiads,
     toggleOlympiadRegistration, overrideScheduleTopic,
     submitWorksheet, addLog,
   } = useKidsDataStore()
@@ -31,6 +33,15 @@ export function useKidStore() {
 
     updateChapterStatus: (subjectId: string, chapterId: string, status: SyllabusChapter['status']) =>
       updateChapterStatus(kidId, subjectId, chapterId, status),
+
+    updateSubjectTextbook: (subjectId: string, textbook: string) =>
+      updateSubjectTextbook(kidId, subjectId, textbook),
+
+    toggleChapterInSchool: (subjectId: string, chapterId: string) =>
+      toggleChapterInSchool(kidId, subjectId, chapterId),
+
+    ensureOlympiads: (defaults: OlympiadExam[]) =>
+      ensureOlympiads(kidId, defaults),
 
     toggleOlympiadRegistration: (olympiadId: string) =>
       toggleOlympiadRegistration(kidId, olympiadId),

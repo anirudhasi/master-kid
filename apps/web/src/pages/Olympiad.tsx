@@ -28,7 +28,17 @@ export default function Olympiad() {
   const [running, setRunning] = useState<OlySet | null>(null)
   const [adding, setAdding] = useState(false)
 
-  if (!kid) return null
+  if (!kid) {
+    return (
+      <div style={wrap}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, marginBottom: 4 }}>
+          <Trophy size={24} color={P} />
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em' }}>Olympiad Practice</h1>
+        </div>
+        <Empty icon="🏆" title="Pick a child to start practising" sub="Select a child from the sidebar to see their Olympiad practice sets, worksheets and sample papers." />
+      </div>
+    )
+  }
   const grade = GRADE_LADDER[currentGradeIndex(kid.grade)]
 
   const customFor = (subject: OlySubject, cat: OlyCategory) =>

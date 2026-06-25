@@ -1,7 +1,7 @@
 {
   "navigationFallback": {
     "rewrite": "/index.html",
-    "exclude": ["/api/*", "/assets/*", "*.css", "*.js", "*.png", "*.jpg", "*.svg", "*.ico", "*.woff", "*.woff2"]
+    "exclude": ["/api/*", "/assets/*", "/worksheets/*", "*.css", "*.js", "*.png", "*.jpg", "*.svg", "*.ico", "*.woff", "*.woff2", "*.pdf"]
   },
   "responseOverrides": {
     "404": {
@@ -13,5 +13,5 @@
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN"
   },
-  "mimeTypes": { ".json": "text/json" }
+  "mimeTypes": { ".json": "text/json", ".pdf": "application/pdf" }
 }

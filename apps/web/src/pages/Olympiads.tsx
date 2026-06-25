@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, ChevronDown, ChevronRight, Calendar, Star } from 'lucide-react'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useAuthStore } from '@/store/authStore'
+import { defaultOlympiadExams } from '@/data/olympiadExamsCatalog'
 
 function daysUntil(dateStr: string) {
   const diff = new Date(dateStr).getTime() - Date.now()
@@ -25,11 +26,18 @@ function Countdown({ date }: { date: string }) {
 }
 
 export default function Olympiads() {
-  const { olympiads, toggleOlympiadRegistration } = useKidStore()
+  const { olympiads, toggleOlympiadRegistration, ensureOlympiads, hasData } = useKidStore()
   const { activeKidId, kids } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)
   const [activeId, setActiveId] = useState<string | null>(olympiads[0]?.id ?? null)
   const [prepExpanded, setPrepExpanded] = useState(true)
+
+  // Pre-fill the tracker with common olympiads on first visit (feedback).
+  useEffect(() => {
+    if (activeKidId && hasData && olympiads.length === 0) {
+      ensureOlympiads(defaultOlympiadExams(activeKid?.grade))
+    }
+  }, [activeKidId, hasData, olympiads.length])
 
   const registered = olympiads.filter(o => o.isRegistered)
   const attending  = olympiads.filter(o => o.isAttending)

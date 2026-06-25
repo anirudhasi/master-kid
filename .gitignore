@@ -9,6 +9,9 @@ build/
 .next/
 out/
 
+# Generated worksheet copies (single source lives in master-kids_Worksheets/)
+apps/web/public/worksheets/
+
 # Environment files — NEVER commit these
 .env.local
 .env.*.local

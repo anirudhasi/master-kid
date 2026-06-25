@@ -45,6 +45,7 @@ export interface SyllabusChapter {
   actualStartDate?: string; actualEndDate?: string
   status: 'not-started' | 'in-progress' | 'completed' | 'revised'
   notes: string; testScheduled?: string
+  inSchool?: boolean   // student/tutor marks chapters currently being done in school
 }
 
 export interface SyllabusSubject {
