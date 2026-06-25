@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { CheckCircle2, Circle, ChevronDown, ChevronRight, BookOpen, Edit3, Check } from 'lucide-react'
+import { CheckCircle2, Circle, ChevronDown, ChevronRight, BookOpen, Edit3, Check, School, Pencil } from 'lucide-react'
 import { type SyllabusSubject, type SyllabusChapter } from '@/store/appStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useAuthStore } from '@/store/authStore'
@@ -31,7 +31,7 @@ function daysUntil(dateStr: string) {
 function ChapterCard({ chapter, subjectId, subjectColor }: {
   chapter: SyllabusChapter; subjectId: string; subjectColor: string
 }) {
-  const { toggleTopicComplete, updateChapterStatus } = useKidStore()
+  const { toggleTopicComplete, updateChapterStatus, toggleChapterInSchool } = useKidStore()
   const [open, setOpen] = useState(false)
   const [editNote, setEditNote] = useState(false)
   const pct   = topicPct(chapter)
@@ -66,6 +66,18 @@ function ChapterCard({ chapter, subjectId, subjectColor }: {
                 ⚡ Test in {days}d
               </span>
             )}
+            <button
+              onClick={e => { e.stopPropagation(); toggleChapterInSchool(subjectId, chapter.id) }}
+              title="Mark chapters currently being done in school"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700,
+                padding: '2px 8px', borderRadius: 10, cursor: 'pointer',
+                border: chapter.inSchool ? 'none' : '1px dashed #CBD5E1',
+                background: chapter.inSchool ? '#DCFCE7' : 'transparent',
+                color: chapter.inSchool ? '#15803D' : '#94A3B8',
+              }}>
+              <School size={10} /> {chapter.inSchool ? 'In school' : 'In school?'}
+            </button>
           </div>
           <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
             <span style={{ fontSize: 11, color: '#64748B' }}>
@@ -152,6 +164,43 @@ function ChapterCard({ chapter, subjectId, subjectColor }: {
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+// Editable textbook / book name per subject (feedback: add the book being followed).
+function EditableBook({ subjectId, textbook, teacher, color }: {
+  subjectId: string; textbook: string; teacher: string; color: string
+}) {
+  const { updateSubjectTextbook } = useKidStore()
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(textbook)
+
+  const save = () => { updateSubjectTextbook(subjectId, val.trim() || 'Textbook'); setEditing(false) }
+
+  if (editing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+        <BookOpen size={12} color={color} />
+        <input autoFocus value={val} onChange={e => setVal(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') { setVal(textbook); setEditing(false) } }}
+          placeholder="Book / textbook name"
+          style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: `1px solid ${color}55`, outline: 'none', background: '#fff', minWidth: 180 }} />
+        <button onClick={save} style={{ display: 'flex', padding: 4, borderRadius: 6, background: color, color: '#fff', border: 'none', cursor: 'pointer' }}><Check size={12} /></button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <BookOpen size={12} color={color} /> {textbook}
+        <button onClick={() => { setVal(textbook); setEditing(true) }} title="Edit book name"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', display: 'flex', padding: 0 }}>
+          <Pencil size={11} />
+        </button>
+      </span>
+      · <span style={{ fontWeight: 600 }}>Teacher: {teacher}</span>
     </div>
   )
 }
@@ -244,9 +293,7 @@ export default function Syllabus() {
               <span style={{ fontSize: 32 }}>{subject.icon}</span>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 18, fontWeight: 800, color: subject.color }}>{subject.name}</div>
-                <div style={{ fontSize: 12, color: '#64748B' }}>
-                  {subject.textbook} · <span style={{ fontWeight: 600 }}>Teacher: {subject.teacher}</span>
-                </div>
+                <EditableBook subjectId={subject.id} textbook={subject.textbook} teacher={subject.teacher} color={subject.color} />
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 28, fontWeight: 900, color: subject.color, lineHeight: 1 }}>{pct}%</div>

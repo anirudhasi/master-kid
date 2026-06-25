@@ -79,14 +79,43 @@ const SETS: OlySet[] = [
       { q: 'Honey is made by…', options: ['Ants', 'Worker bees', 'Spiders', 'Butterflies'], answerIndex: 1 },
     ],
   },
-  {
-    id: 'oly-m-sp1', subject: 'maths', category: 'sample', grade: 'Class 4', kind: 'sample_paper', source: 'sample',
-    title: 'IMO 2024 — Previous Year Paper (sample)', materialUrl: '',
-  },
 ]
 
+// ── Class 4 Maths worksheet PDFs (served from /public) ────────────────────────
+// Real worksheet bank from master-kids_Worksheets/Class 4/Maths, mapped into the
+// Olympiad practice levels by lesson band: L1 → Basic, L2 → Intermediate,
+// L3 → Pro, and the MOCK/SAMPLE papers → Sample Papers.
+const C4_MATH_DIR = '/worksheets/class4/maths'
+const pad = (n: number) => String(n).padStart(2, '0')
+
+function c4MathWorksheetSets(): OlySet[] {
+  const mk = (n: number, lesson: number, category: OlyCategory): OlySet => ({
+    id: `oly-m-c4-w${pad(n)}`,
+    subject: 'maths', category, grade: 'Class 4', kind: 'sample_paper', source: 'sample',
+    title: `Maths Practice — Worksheet ${n}`,
+    materialUrl: `${C4_MATH_DIR}/MK-MATH-C4-L${lesson}-W${pad(n)}.pdf`,
+  })
+  const sets: OlySet[] = []
+  for (let n = 1; n <= 20; n++) sets.push(mk(n, 1, 'basic'))
+  for (let n = 21; n <= 40; n++) sets.push(mk(n, 2, 'intermediate'))
+  for (let n = 41; n <= 46; n++) sets.push(mk(n, 3, 'pro'))
+  sets.push({
+    id: 'oly-m-c4-sp-mock', subject: 'maths', category: 'sample', grade: 'Class 4',
+    kind: 'sample_paper', source: 'sample', title: 'Maths Mock Paper (Sample)',
+    materialUrl: `${C4_MATH_DIR}/MK-MATH-C4-MOCK-W81_SAMPLE.pdf`,
+  })
+  sets.push({
+    id: 'oly-m-c4-sp-w27', subject: 'maths', category: 'sample', grade: 'Class 4',
+    kind: 'sample_paper', source: 'sample', title: 'Maths Sample Paper — Set 27',
+    materialUrl: `${C4_MATH_DIR}/MK-MATH-C4-L2-W27_SAMPLE.pdf`,
+  })
+  return sets
+}
+
+const ALL_SETS: OlySet[] = [...SETS, ...c4MathWorksheetSets()]
+
 export function setsFor(grade: string, subject: OlySubject, category: OlyCategory): OlySet[] {
-  return SETS.filter(s => s.grade === grade && s.subject === subject && s.category === category)
+  return ALL_SETS.filter(s => s.grade === grade && s.subject === subject && s.category === category)
 }
 
 export function seededCount(grade: string, subject: OlySubject, category: OlyCategory): number {

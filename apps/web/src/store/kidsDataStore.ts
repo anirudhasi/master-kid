@@ -127,6 +127,9 @@ interface KidsDataState {
   addLog:                   (kidId: string, subject: string, activity: string, durationMinutes: number, mood: Mood) => void
   toggleTopicComplete:      (kidId: string, subjectId: string, chapterId: string, topicId: string) => void
   updateChapterStatus:      (kidId: string, subjectId: string, chapterId: string, status: SyllabusChapter['status']) => void
+  updateSubjectTextbook:    (kidId: string, subjectId: string, textbook: string) => void
+  toggleChapterInSchool:    (kidId: string, subjectId: string, chapterId: string) => void
+  ensureOlympiads:          (kidId: string, defaults: OlympiadExam[]) => void
   toggleOlympiadRegistration: (kidId: string, olympiadId: string) => void
   overrideScheduleTopic:    (kidId: string, day: string, blockId: string, topic: string) => void
   submitWorksheet:          (kidId: string, worksheetId: string, score: number) => void
@@ -222,6 +225,49 @@ export const useKidsDataStore = create<KidsDataState>()(
               },
             },
           }
+        })
+      },
+
+      updateSubjectTextbook(kidId, subjectId, textbook) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: {
+                ...kid,
+                subjects: kid.subjects.map(sub => sub.id !== subjectId ? sub : { ...sub, textbook }),
+              },
+            },
+          }
+        })
+      },
+
+      toggleChapterInSchool(kidId, subjectId, chapterId) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: {
+                ...kid,
+                subjects: kid.subjects.map(sub => sub.id !== subjectId ? sub : {
+                  ...sub,
+                  chapters: sub.chapters.map(ch => ch.id !== chapterId ? ch : { ...ch, inSchool: !ch.inSchool }),
+                }),
+              },
+            },
+          }
+        })
+      },
+
+      ensureOlympiads(kidId, defaults) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid || kid.olympiads.length > 0) return s
+          return { kidsData: { ...s.kidsData, [kidId]: { ...kid, olympiads: defaults } } }
         })
       },
 

@@ -7,7 +7,10 @@ import {
 import { useAuthStore } from '@/store/authStore'
 import { useActivityStore, activitiesFor, type Activity } from '@/store/activityStore'
 import { activityService } from '@/services/activityService'
-import { ACTIVITY_TYPES, ACTIVITY_META, defaultCurriculum } from '@/data/activityCatalog'
+import {
+  ACTIVITY_TYPES, ACTIVITY_META, defaultCurriculum,
+  standardCoursesFor, TARGET_NO_TARGET, TARGET_UNDECIDED,
+} from '@/data/activityCatalog'
 import { useCoachStore, PLAN_PRICING } from '@/store/coachStore'
 import { coachService } from '@/services/coachService'
 import { ChatThread } from '@/pages/Coach'
@@ -26,6 +29,7 @@ export default function ExtraCurricular() {
 
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [customName, setCustomName] = useState('')
 
   if (!kid) return null
   const activities = activitiesFor(all, kid.id)
@@ -37,6 +41,15 @@ export default function ExtraCurricular() {
       childId: kid.id, key, name: meta.name, icon: meta.icon, color: meta.color,
       level: 'Beginner', curriculum: defaultCurriculum(key, kid.age), targetName: '', targetDate: '',
     }).then(a => { setAdding(false); setOpenId(a.id) })
+  }
+
+  // "Add your own" — any activity not in the preset list (feedback: option to add activities).
+  const addCustomActivity = (name: string) => {
+    const n = name.trim(); if (!n) return
+    activityService.add({
+      childId: kid.id, key: `custom-${Date.now()}`, name: n, icon: '⭐', color: P,
+      level: 'Beginner', curriculum: defaultCurriculum('', kid.age, n), targetName: '', targetDate: '',
+    }).then(a => { setAdding(false); setCustomName(''); setOpenId(a.id) })
   }
 
   // ── Activity detail ─────────────────────────────────────────────────────────
@@ -90,8 +103,8 @@ export default function ExtraCurricular() {
 
       <AnimatePresence>
         {adding && (
-          <Modal title="Add an activity" onClose={() => setAdding(false)}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxHeight: '60vh', overflowY: 'auto' }}>
+          <Modal title="Add an activity" onClose={() => { setAdding(false); setCustomName('') }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, maxHeight: '48vh', overflowY: 'auto' }}>
               {ACTIVITY_TYPES.map(t => (
                 <button key={t.key} onClick={() => addActivity(t.key)}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px', borderRadius: 11, cursor: 'pointer', border: '1.5px solid #E2E8F0', background: '#fff', fontFamily: FONT, textAlign: 'left' }}>
@@ -99,6 +112,18 @@ export default function ExtraCurricular() {
                   <span style={{ fontSize: 13.5, fontWeight: 800, color: '#0F172A' }}>{t.name}</span>
                 </button>
               ))}
+            </div>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #EEF0F5' }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#64748B', marginBottom: 6 }}>Don't see it? Add your own</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input value={customName} onChange={e => setCustomName(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') addCustomActivity(customName) }}
+                  placeholder="e.g. Karate, Pottery, Violin…" style={{ ...input, flex: 1 }} />
+                <button onClick={() => addCustomActivity(customName)} disabled={!customName.trim()}
+                  style={{ ...primaryBtn, opacity: customName.trim() ? 1 : 0.5, cursor: customName.trim() ? 'pointer' : 'not-allowed' }}>
+                  <Plus size={14} /> Add
+                </button>
+              </div>
             </div>
           </Modal>
         )}
@@ -121,6 +146,20 @@ function ActivityDetail({ activity, age, onBack, onDeleted }: { activity: Activi
   const [targetDate, setTargetDate] = useState(activity.targetDate)
   const [saved, setSaved] = useState(false)
   const dirty = level !== activity.level || curriculum !== activity.curriculum || targetName !== activity.targetName || targetDate !== activity.targetDate
+
+  // Target = standard course picker + special options (feedback). Picking a
+  // standard course auto-fills the syllabus; "Custom course name…" reveals a field.
+  const courses = standardCoursesFor(activity.key, activity.name)
+  const isStdTarget = courses.some(c => c.name === targetName)
+  const isSpecialTarget = targetName === TARGET_NO_TARGET || targetName === TARGET_UNDECIDED
+  const [customTarget, setCustomTarget] = useState(!!targetName && !isStdTarget && !isSpecialTarget)
+  const targetSelectVal = customTarget ? '__custom__' : (isStdTarget || isSpecialTarget ? targetName : '')
+  const onTargetSelect = (v: string) => {
+    if (v === '__custom__') { setCustomTarget(true); setTargetName(''); return }
+    setCustomTarget(false); setTargetName(v)
+    const c = courses.find(x => x.name === v)
+    if (c) setCurriculum(c.syllabus)
+  }
 
   const save = () => { void activityService.update(activity.id, { level, curriculum, targetName, targetDate }); setSaved(true); setTimeout(() => setSaved(false), 1500) }
 
@@ -164,7 +203,21 @@ function ActivityDetail({ activity, age, onBack, onDeleted }: { activity: Activi
         {/* Side: target + coach */}
         <div style={{ display: 'grid', gap: 14 }}>
           <Card title="Target" icon={<Target size={15} color={activity.color} />}>
-            <input value={targetName} onChange={e => setTargetName(e.target.value)} placeholder="e.g. Year-1 grade exam" style={input} />
+            <select value={targetSelectVal} onChange={e => onTargetSelect(e.target.value)} style={{ ...input, cursor: 'pointer' }}>
+              <option value="" disabled>Choose a target…</option>
+              <optgroup label="Standard courses">
+                {courses.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+              </optgroup>
+              <optgroup label="Other">
+                <option value={TARGET_NO_TARGET}>{TARGET_NO_TARGET}</option>
+                <option value={TARGET_UNDECIDED}>{TARGET_UNDECIDED}</option>
+                <option value="__custom__">Custom course name…</option>
+              </optgroup>
+            </select>
+            {customTarget && (
+              <input value={targetName} onChange={e => setTargetName(e.target.value)} placeholder="e.g. Year-1 grade exam" style={{ ...input, marginTop: 8 }} />
+            )}
+            {isStdTarget && <div style={{ fontSize: 11, color: '#16A34A', fontWeight: 700, marginTop: 8 }}>✓ Syllabus auto-filled from this course</div>}
             <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', display: 'flex', alignItems: 'center', gap: 5, margin: '10px 0 5px' }}><Calendar size={12} /> Target date (flexible)</label>
             <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} style={input} />
             {targetDate && (() => { const d = daysTo(targetDate); return <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 8 }}>{fmt(targetDate)}{d !== null && d >= 0 ? ` · ${d} days to go` : ''}</div> })()}
