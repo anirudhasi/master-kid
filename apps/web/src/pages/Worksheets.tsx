@@ -4,6 +4,9 @@ import { CheckCircle2, Circle, Upload, ChevronRight, Award, Clock, Lightbulb } f
 import { type Worksheet } from '@/store/appStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useAuthStore } from '@/store/authStore'
+import Resources from '@/pages/Resources'
+
+const FONT = "'Nunito', 'Inter', sans-serif"
 
 const DIFFICULTY_CONFIG = {
   easy:   { label: 'Easy',   color: '#059669', bg: '#ECFDF5' },
@@ -175,7 +178,27 @@ function WorksheetAttempt({ ws, onClose }: { ws: Worksheet; onClose: () => void 
   )
 }
 
+// Merged page: "Assigned to me" (this child's worksheets) + "Library" (full catalog).
 export default function Worksheets() {
+  const [tab, setTab] = useState<'assigned' | 'library'>('assigned')
+  return (
+    <div className="page-container" style={{ paddingBottom: 0 }}>
+      <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 11, padding: 3, margin: '0 0 4px' }}>
+        {([['assigned', 'Assigned to me'], ['library', 'Worksheet Library']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            style={{ padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800,
+              background: tab === k ? '#fff' : 'transparent', color: tab === k ? '#4F46E5' : '#64748B',
+              boxShadow: tab === k ? '0 1px 4px rgba(15,23,42,0.1)' : 'none' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'assigned' ? <AssignedWorksheets /> : <Resources />}
+    </div>
+  )
+}
+
+function AssignedWorksheets() {
   const { worksheets, subjects } = useKidStore()
   const { activeKidId, kids } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)

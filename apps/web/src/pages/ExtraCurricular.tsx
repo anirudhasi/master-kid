@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, X, ChevronLeft, Trash2, Target, Sparkles, Link2, Copy, Check,
@@ -30,6 +30,33 @@ export default function ExtraCurricular() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [customName, setCustomName] = useState('')
+
+  // Seed activities from the profile onboarding selections the first time the
+  // page is opened, so the extra-curricular page reflects what the parent picked.
+  useEffect(() => {
+    if (!kid) return
+    const fresh = activitiesFor(useActivityStore.getState().activities, kid.id)
+    if (fresh.length > 0) return
+    const names = kid.onboarding?.activities ?? []
+    names.forEach(name => {
+      const meta = ACTIVITY_TYPES.find(t => t.name.toLowerCase() === name.toLowerCase())
+        ?? ACTIVITY_TYPES.find(t => {
+          const a = t.name.toLowerCase(), b = name.toLowerCase()
+          return a.includes(b) || b.includes(a)
+        })
+      void activityService.add({
+        childId: kid.id,
+        key: meta?.key ?? `custom-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        name: meta?.name ?? name,
+        icon: meta?.icon ?? '⭐',
+        color: meta?.color ?? P,
+        level: 'Beginner',
+        curriculum: defaultCurriculum(meta?.key ?? '', kid.age, name),
+        targetName: '', targetDate: '',
+      })
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kid?.id])
 
   if (!kid) return null
   const activities = activitiesFor(all, kid.id)

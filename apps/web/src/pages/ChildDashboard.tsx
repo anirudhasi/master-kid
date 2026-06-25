@@ -175,6 +175,36 @@ export default function ChildDashboard() {
         </div>
       </motion.div>
 
+      {/* ── Goal + daily motivation band ─── */}
+      {(() => {
+        const goal = activeKid?.onboarding?.lifeGoal
+        const targetYear = activeKid?.onboarding?.targetYear
+        const { quote, emoji } = dailyMotivation(displayName, activeKid?.age ?? 9, goal ?? '')
+        return (
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+            style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', marginBottom: 18, padding: '14px 18px', borderRadius: 14, background: 'linear-gradient(135deg,#FFF7ED,#FEF3FF)', border: '1px solid #FBCFE8' }}>
+            <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: '#9333EA', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>
+                {goal ? 'My Dream' : 'Today'}
+              </div>
+              {goal ? (
+                <button onClick={() => navigate('/profile')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}>
+                  <span style={{ fontSize: 17, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.02em' }}>🎯 {goal}</span>
+                  {targetYear ? <span style={{ fontSize: 12, fontWeight: 700, color: '#9333EA', marginLeft: 8 }}>by {targetYear}</span> : null}
+                </button>
+              ) : (
+                <button onClick={() => navigate('/profile')} style={{ fontSize: 14, fontWeight: 800, color: '#9333EA', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  🎯 Set your dream goal →
+                </button>
+              )}
+            </div>
+            <div style={{ flex: '2 1 320px', fontSize: 14, fontWeight: 700, color: '#7C2D12', lineHeight: 1.5 }}>
+              {emoji} {quote}
+            </div>
+          </motion.div>
+        )
+      })()}
+
       {/* ── Toast ─── */}
       <AnimatePresence>
         {toast && (
@@ -212,7 +242,8 @@ export default function ChildDashboard() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {displaySubjects.map(sub => (
-                  <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div key={sub.id} onClick={() => navigate('/syllabus')} title={`Open ${sub.name} syllabus`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderRadius: 8, padding: '2px 4px', margin: '0 -4px' }}>
                     <span style={{ fontSize: 16, flexShrink: 0, width: 22, textAlign: 'center' }}>{sub.icon}</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
@@ -228,7 +259,7 @@ export default function ChildDashboard() {
                         <div style={{ fontSize: 9.5, color: '#94A3B8', marginTop: 2 }}>{sub.done}/{sub.total} topics</div>
                       )}
                     </div>
-                    <button onClick={() => !loggedSet.has(sub.name) && handleTap(sub.name)}
+                    <button onClick={(e) => { e.stopPropagation(); !loggedSet.has(sub.name) && handleTap(sub.name) }} title="Log a study session"
                       style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', cursor: 'pointer', background: loggedSet.has(sub.name) ? '#DCFCE7' : '#EEF2FF', color: loggedSet.has(sub.name) ? '#166534' : '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
                       {loggedSet.has(sub.name) ? '✓' : '+'}
                     </button>
@@ -309,9 +340,9 @@ export default function ChildDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Today — {today}</div>
               {weeklySchedule.length > 0 && (
-                <button onClick={() => navigate('/schedule')}
+                <button onClick={() => navigate('/plan')}
                   style={{ fontSize: 10, color: '#4F46E5', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}>
-                  Full Schedule <ChevronRight size={10} />
+                  My Planner <ChevronRight size={10} />
                 </button>
               )}
             </div>
@@ -365,12 +396,14 @@ export default function ChildDashboard() {
             <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #DCE8F5', padding: '14px 16px' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 10 }}>My Activities</div>
               {activityList.map(a => (
-                <div key={a.name} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                <div key={a.name} onClick={() => navigate('/activities')} title={`Open ${a.name}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7, cursor: 'pointer', borderRadius: 8, padding: '2px 4px', margin: '0 -4px 7px' }}>
                   <div style={{ width: 30, height: 30, borderRadius: 8, background: a.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>{a.emoji}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A' }}>{a.name}</div>
                     <div style={{ fontSize: 10, color: a.color, fontWeight: 600 }}>{a.level}</div>
                   </div>
+                  <ChevronRight size={13} color="#CBD5E1" />
                 </div>
               ))}
             </div>
@@ -494,7 +527,7 @@ export default function ChildDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
               {[
                 { label: 'Syllabus',  emoji: '📚', path: '/syllabus',  bg: '#EEF2FF', color: '#4F46E5' },
-                { label: 'Schedule',  emoji: '📅', path: '/schedule',  bg: '#ECFDF5', color: '#059669' },
+                { label: 'My Planner', emoji: '📅', path: '/plan',     bg: '#ECFDF5', color: '#059669' },
                 { label: 'Olympiads', emoji: '🏆', path: '/olympiads', bg: '#FFFBEB', color: '#D97706' },
                 { label: 'AI Tutor',  emoji: '🤖', path: '/assistant', bg: '#F5F3FF', color: '#7C3AED' },
               ].map(tile => (
@@ -538,6 +571,52 @@ export default function ChildDashboard() {
       </div>
     </div>
   )
+}
+
+// ── Daily motivation keyed to the child's ambition + age ───────────────────────
+function dailyMotivation(name: string, age: number, goal: string): { quote: string; emoji: string } {
+  const g = goal.toLowerCase()
+  const pools: { match: RegExp; emoji: string; lines: string[] }[] = [
+    { match: /space|astronaut|astro|scientist|science|physic|research/, emoji: '🚀', lines: [
+      `Every great scientist started by asking "why?" — keep wondering, ${name}!`,
+      'The stars are reached one small step at a time. Take yours today.',
+      'Curiosity is your superpower — discover something new today!',
+    ] },
+    { match: /doctor|medicine|surgeon|nurse|bio|marine|vet/, emoji: '🩺', lines: [
+      `Healers begin with curiosity and kindness — you have both, ${name}.`,
+      "Every page you learn today helps someone you'll care for tomorrow.",
+      'Great doctors are great learners first. Keep going!',
+    ] },
+    { match: /sport|swim|cricket|football|athlete|olympic|tennis|badminton|skat/, emoji: '🏅', lines: [
+      `Champions train even on the days they don't feel like it. Show up, ${name}!`,
+      'Small practice today, big medal tomorrow. 🏆',
+      'Discipline beats talent — and you have the discipline!',
+    ] },
+    { match: /art|paint|draw|design|music|sing|dance|actor|create|fashion/, emoji: '🎨', lines: [
+      `Create a little every day and watch your magic grow, ${name}.`,
+      'Your imagination has no limits — let it out today!',
+      'Practice turns talent into art. Keep creating!',
+    ] },
+    { match: /engineer|coding|tech|robot|software|computer|game|ai/, emoji: '💡', lines: [
+      `Builders change the world one idea at a time. Build today, ${name}!`,
+      'Every problem you solve makes you smarter. Keep solving!',
+      'Great inventions start as tiny experiments — try one today.',
+    ] },
+    { match: /teacher|lawyer|business|leader|ias|ips|civil|entrepreneur|pilot/, emoji: '⭐', lines: [
+      `Leaders are learners. Learn something worth sharing today, ${name}.`,
+      "Your effort today shapes the leader you'll become.",
+      'Big dreams need daily steps — take one now!',
+    ] },
+  ]
+  const general = { emoji: '🌟', lines: [
+    `A little progress each day adds up to big things, ${name}!`,
+    "Believe in yourself — you're capable of amazing things.",
+    'Today is a fresh page — make it a great one!',
+    age <= 8 ? `You're a superstar in the making, ${name}! ✨` : `Dream big and work a little every day, ${name}.`,
+  ] }
+  const pool = pools.find(p => p.match.test(g)) ?? general
+  const dayIdx = Math.floor(Date.now() / 86400000)
+  return { quote: pool.lines[dayIdx % pool.lines.length], emoji: pool.emoji }
 }
 
 // ── Activity emoji helper ──────────────────────────────────────────────────────

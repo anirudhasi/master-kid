@@ -23,9 +23,8 @@ const CHILD_NAV: NavSection[] = [
       { icon: BookOpen,        label: 'Academics',          href: '/academic'   },
       { icon: User,            label: 'Profile',            href: '/profile'    },
       { icon: GraduationCap,   label: 'Syllabus & Progress', href: '/syllabus' },
-      { icon: CalendarDays,    label: 'Weekly Schedule',     href: '/schedule'  },
+      { icon: CalendarDays,    label: 'My Planner',          href: '/plan'      },
       { icon: Drama,           label: 'Extra-curricular',    href: '/activities' },
-      { icon: ClipboardList,   label: 'Learning Plan',       href: '/plan'      },
     ],
   },
   {
@@ -34,7 +33,6 @@ const CHILD_NAV: NavSection[] = [
       { icon: FileText, label: 'Worksheets',        href: '/worksheets' },
       { icon: Trophy,   label: 'Olympiad Practice', href: '/olympiad'   },
       { icon: Award,    label: 'Olympiad Exams',    href: '/olympiads'  },
-      { icon: Library,  label: 'Worksheet Library', href: '/resources'  },
     ],
   },
   {
@@ -310,8 +308,8 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        <ProfileBlock />
-        <NavItems />
+        {ProfileBlock()}
+        {NavItems()}
 
         {/* Footer */}
         <div style={{
@@ -385,8 +383,8 @@ export default function Sidebar() {
                 <X size={18} />
               </button>
             </div>
-            <ProfileBlock />
-            <NavItems />
+            {ProfileBlock()}
+            {NavItems()}
           </div>
         </div>
       )}
