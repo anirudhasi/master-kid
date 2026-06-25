@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import RequireAuth from '@/components/RequireAuth'
+import ErrorBoundary from '@/components/ErrorBoundary'
 import Login from '@/pages/Login'
 import KidOnboarding from '@/pages/KidOnboarding'
 import Landing from '@/pages/Landing'
@@ -10,7 +11,7 @@ import ParentDashboard from '@/pages/ParentDashboard'
 import TutorPortal from '@/pages/TutorPortal'
 import TutorMarketplace from '@/pages/TutorMarketplace'
 import StudentProfile from '@/pages/StudentProfile'
-import LearningPlan from '@/pages/LearningPlan'
+import MyPlanner from '@/pages/MyPlanner'
 import Social from '@/pages/Social'
 import AIAssistant from '@/pages/AIAssistant'
 import Pricing from '@/pages/Pricing'
@@ -71,6 +72,7 @@ function AppShell() {
     <div className="app-shell">
       <Sidebar />
       <main className="content-area">
+        <ErrorBoundary resetKey={loc.pathname}>
         <Routes>
           <Route path="/child"      element={<ChildDashboard />} />
           <Route path="/storyboard" element={<Storyboard />} />
@@ -83,21 +85,22 @@ function AppShell() {
           <Route path="/admin"      element={<Admin />} />
           <Route path="/tutors"     element={<TutorMarketplace />} />
           <Route path="/profile"    element={<StudentProfile />} />
-          <Route path="/plan"       element={<LearningPlan />} />
+          <Route path="/plan"       element={<MyPlanner />} />
           <Route path="/social"     element={<Social />} />
           <Route path="/assistant"  element={<AIAssistant />} />
           <Route path="/pricing"    element={<Pricing />} />
           <Route path="/syllabus"   element={<Syllabus />} />
-          <Route path="/schedule"   element={<Schedule />} />
+          <Route path="/schedule"   element={<Navigate to="/plan" replace />} />
           <Route path="/olympiads"  element={<Olympiads />} />
           <Route path="/worksheets" element={<Worksheets />} />
-          <Route path="/resources"  element={<Resources />} />
+          <Route path="/resources"  element={<Navigate to="/worksheets" replace />} />
           <Route path="/blog"       element={<Blog />} />
           <Route path="/fun"        element={<Knowledge />} />
           <Route path="/digest"     element={<Daily />} />
           <Route path="/404"        element={<NotFound />} />
           <Route path="*"           element={<Navigate to="/404" replace />} />
         </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   )

@@ -27,7 +27,7 @@ const store = () => useActivityStore.getState()
 
 const base: ActivityService = {
   async add(a) {
-    const full: Activity = { ...a, id: `act-${Date.now()}`, createdAt: Date.now(), coachStatus: 'none' }
+    const full: Activity = { ...a, id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, createdAt: Date.now(), coachStatus: 'none' }
     store()._set(full)
     return full
   },
