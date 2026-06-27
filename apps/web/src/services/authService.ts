@@ -24,13 +24,18 @@ export interface OtpVerifyResult {
 }
 export interface AuthSession {
   userId: string
-  /** 10-digit national number (normalized). */
+  /** Login identifier: email (preferred) or 10-digit phone. */
   phone: string
+  email?: string
+  name?: string
+  avatarUrl?: string
 }
 
 export interface AuthService {
   requestOtp(phone10: string): Promise<OtpRequestResult>
   verifyOtp(phone10: string, code: string): Promise<OtpVerifyResult>
+  /** Redirect-based Google OAuth sign-in (no email/SMTP needed). */
+  signInWithGoogle(): Promise<{ ok: boolean; error?: string }>
   getSession(): Promise<AuthSession | null>
   signOut(): Promise<void>
   /** Subscribe to session changes; returns an unsubscribe fn. */
@@ -43,6 +48,19 @@ const toE164 = (raw: string) =>
 const isEmail = (s: string) => s.includes('@')
 /** Normalize an identifier: lower-cased email, or last-10-digit phone. */
 const normId = (raw: string) => isEmail(raw) ? raw.trim().toLowerCase() : to10(raw)
+
+/** Map a Supabase auth user to our AuthSession (email + Google profile metadata). */
+function sessionFrom(u: { id: string; email?: string | null; phone?: string | null; user_metadata?: Record<string, any> } | null | undefined): AuthSession | null {
+  if (!u) return null
+  const meta = u.user_metadata ?? {}
+  return {
+    userId: u.id,
+    phone: u.email ? String(u.email).toLowerCase() : to10(u.phone ?? ''),
+    email: u.email ?? undefined,
+    name: meta.full_name ?? meta.name ?? undefined,
+    avatarUrl: meta.avatar_url ?? meta.picture ?? undefined,
+  }
+}
 
 // ── Mock provider (no backend) ───────────────────────────────────────────────
 const pendingOtp = new Map<string, string>()
@@ -61,6 +79,9 @@ const mockAuthService: AuthService = {
       return { ok: true, userId: `mock:${key}` }
     }
     return { ok: false, error: 'Incorrect code' }
+  },
+  async signInWithGoogle() {
+    return { ok: false, error: 'Google sign-in needs the live backend (Supabase).' }
   },
   // Mock session is owned by the persisted Zustand store, not here.
   async getSession() {
@@ -93,12 +114,18 @@ const supabaseAuthService: AuthService = {
     if (error) return { ok: false, error: error.message }
     return { ok: true, userId: data.user?.id }
   },
+  async signInWithGoogle() {
+    if (!supabase) return { ok: false, error: 'Auth backend not configured' }
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/login' },
+    })
+    return error ? { ok: false, error: error.message } : { ok: true }
+  },
   async getSession() {
     if (!supabase) return null
     const { data } = await supabase.auth.getSession()
-    const u = data.session?.user
-    if (!u) return null
-    return { userId: u.id, phone: u.email ? u.email.toLowerCase() : to10(u.phone ?? '') }
+    return sessionFrom(data.session?.user)
   },
   async signOut() {
     await supabase?.auth.signOut()
@@ -106,8 +133,7 @@ const supabaseAuthService: AuthService = {
   onChange(cb) {
     if (!supabase) return () => {}
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-      const u = session?.user
-      cb(u ? { userId: u.id, phone: u.email ? u.email.toLowerCase() : to10(u.phone ?? '') } : null)
+      cb(sessionFrom(session?.user))
     })
     return () => data.subscription.unsubscribe()
   },
