@@ -42,6 +42,14 @@ jobs:
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
+        # The SWA action runs its OWN Oryx build, which does NOT inherit env from the
+        # "Build web app" step above. So the Vite vars must be set here too, or they
+        # won't be baked into the deployed bundle.
+        env:
+          VITE_ADMIN_PHONE: ${{ secrets.VITE_ADMIN_PHONE }}
+          VITE_ADMIN_PASSWORD_HASH: ${{ secrets.VITE_ADMIN_PASSWORD_HASH }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_BLUE_MUD_02732EE00 }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
