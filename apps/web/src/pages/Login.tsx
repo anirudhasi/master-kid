@@ -5,8 +5,38 @@ import { Phone, Shield, Users, Star, Sparkles, ChevronLeft, Plus, Trash2, Eye, C
 import { useAuthStore, type UserRole, type KidProfile } from '@/store/authStore'
 import { useSubscriptionStore, isSubscriptionActive, daysRemaining, type Subscription } from '@/store/subscriptionStore'
 import { isAdminPhone, verifyAdmin } from '@/lib/adminAuth'
-import { LOGIN_METHOD } from '@/lib/env'
+import { LOGIN_METHOD, AUTH_PROVIDER } from '@/lib/env'
 import { Mail } from 'lucide-react'
+
+// "Continue with Google" — redirect OAuth, no email/SMTP. Shown when the live
+// backend is configured (Supabase). The button is reused on the entry step.
+function GoogleButton() {
+  const { loginWithGoogle } = useAuthStore()
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const go = async () => {
+    setBusy(true); setErr('')
+    const res = await loginWithGoogle()
+    if (!res.ok) { setBusy(false); setErr(res.error ?? 'Google sign-in is unavailable.') }
+    // on success the browser redirects to Google, so no further UI needed
+  }
+  if (AUTH_PROVIDER !== 'supabase') return null
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <button onClick={go} disabled={busy}
+        style={{ width: '100%', height: 52, borderRadius: 12, border: '1.5px solid #DCE8F5', background: '#fff', cursor: busy ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 14.5, fontWeight: 800, color: '#1F2937', fontFamily: "'Nunito','Inter',sans-serif", boxShadow: '0 1px 4px rgba(15,23,42,0.06)' }}>
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        {busy ? 'Redirecting…' : 'Continue with Google'}
+      </button>
+      {err && <p style={{ fontSize: 11.5, color: '#DC2626', marginTop: 6, fontWeight: 600 }}>{err}</p>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 0' }}>
+        <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+        <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 700 }}>or use email</span>
+        <div style={{ flex: 1, height: 1, background: '#E2E8F0' }} />
+      </div>
+    </div>
+  )
+}
 
 // ── Design tokens (matches MasterKids_Login_Module_Spec) ───────────────────────
 const P  = '#6C63FF'
@@ -216,6 +246,8 @@ function EmailStep() {
         <h2 style={{ fontSize: 26, fontWeight: 900, color: '#0F172A', letterSpacing: '-0.03em', marginBottom: 6, fontFamily: FONT }}>Welcome to Master-Kids</h2>
         <p style={{ fontSize: 13.5, color: '#64748B', lineHeight: 1.6 }}>Enter your email to sign in or create a new account — we'll send a one-time code.</p>
       </div>
+
+      <GoogleButton />
 
       <div style={{ marginBottom: 16 }}>
         <label style={{ fontSize: 11, fontWeight: 700, color: '#64748B', letterSpacing: '0.05em', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Email address</label>

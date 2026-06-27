@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { authService, isMockAuth } from '@/services/authService'
+import { authService, isMockAuth, type AuthSession } from '@/services/authService'
 import { ADMIN_PHONE } from '@/lib/env'
 
 export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH' | 'ADMIN'
@@ -91,6 +91,8 @@ export interface AuthStore {
 
   // Actions
   init:           () => Promise<void>
+  /** Start Google OAuth (redirect). Returns an error if the backend isn't set up. */
+  loginWithGoogle: () => Promise<{ ok: boolean; error?: string }>
   adminLogin:     () => void
   adminAddAccount:(phone: string, name: string, role: UserRole) => void
   adminAddChild:  (phone: string, kid: Omit<KidProfile, 'id' | 'isOnboarded'>) => void
@@ -153,28 +155,40 @@ export const useAuthStore = create<AuthStore>()(
       // Mock mode trusts the persisted store; Supabase mode trusts the live session.
       async init() {
         if (isMockAuth) return
-        const session = await authService.getSession()
-        if (!session) {
-          set({ isAuthenticated: false, step: 'phone', activePhone: '' })
-        } else {
-          const phone10  = normalizePhone(session.phone)
-          const existing = get().accounts[phone10]
-          set({
-            isAuthenticated: true,
-            activePhone: phone10,
-            step: 'profiles',
-            ...(existing && {
-              adminName: existing.adminName,
-              adminAvatar: existing.adminAvatar,
-              adminPhotoUrl: existing.adminPhotoUrl,
-              role: existing.role ?? 'PARENT',
-              kids: existing.kids,
-            }),
-          })
+        // Reconcile a backend session (OTP or Google OAuth) into the store. For a
+        // first-time OAuth user with no local account yet, auto-provision one from
+        // the Google profile so they land straight on the profile picker.
+        const apply = (session: AuthSession | null) => {
+          if (!session) { set({ ...BLANK_SESSION }); return }
+          const id = normalizeId(session.phone)
+          const existing = get().accounts[id]
+          if (existing) {
+            set({
+              isAuthenticated: true, activePhone: id, step: 'profiles',
+              adminName: existing.adminName, adminAvatar: existing.adminAvatar,
+              adminPhotoUrl: existing.adminPhotoUrl, role: existing.role ?? 'PARENT', kids: existing.kids,
+            })
+          } else {
+            const account: UserAccount = {
+              phone: id,
+              adminName: session.name ?? session.email?.split('@')[0] ?? 'Parent',
+              adminAvatar: '👤', adminPhotoUrl: session.avatarUrl,
+              role: 'PARENT', kids: [], createdAt: Date.now(),
+            }
+            set(s => ({
+              accounts: { ...s.accounts, [id]: account },
+              isAuthenticated: true, activePhone: id, step: 'profiles',
+              adminName: account.adminName, adminAvatar: account.adminAvatar,
+              adminPhotoUrl: account.adminPhotoUrl, role: 'PARENT', kids: [],
+            }))
+          }
         }
-        authService.onChange(s => {
-          if (!s) set({ ...BLANK_SESSION })
-        })
+        apply(await authService.getSession())
+        authService.onChange(apply)
+      },
+
+      async loginWithGoogle() {
+        return authService.signInWithGoogle()
       },
 
       async submitPhone(displayPhone) {

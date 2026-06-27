@@ -8,7 +8,7 @@ export const supabase: SupabaseClient | null = hasSupabase
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,   // needed so the OAuth (Google) redirect establishes the session
       },
     })
   : null
