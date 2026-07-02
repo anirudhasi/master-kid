@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight, ChevronLeft, Check, Upload } from 'lucide-react'
+import { ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { useAuthStore, type KidOnboardingData, type KidProfile } from '@/store/authStore'
 import { useKidsDataStore } from '@/store/kidsDataStore'
 
@@ -35,7 +35,15 @@ function getSubjectsByBoardAndGrade(board: string, grade: string): string[] {
     return ['English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Economics', 'History', 'Geography', 'Psychology', 'Computer Science', 'French', 'Hindi', 'Physical Education', 'Fine Arts']
   }
 
-  // ── CBSE / State Board (default) ─────────────────────────────────────────
+  // ── State Board — schools commonly split Science/SST and add the mother
+  // tongue (e.g. Kannada) plus Abacus from early classes ────────────────────
+  if (b.includes('STATE')) {
+    if (g <= 5)  return ['English', 'Mathematics', 'Science', 'Social Studies (SST)', 'Hindi', 'Kannada', 'General Knowledge (GK)', 'Moral Science', 'Computer', 'Abacus', 'Physical Education']
+    if (g <= 10) return ['English', 'Mathematics', 'Science', 'Social Science', 'Hindi', 'Kannada', 'Computer', 'Physical Education']
+    return ['English', 'Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Accountancy', 'Business Studies', 'Economics', 'History', 'Political Science']
+  }
+
+  // ── CBSE (default) ───────────────────────────────────────────────────────
   if (g <= 2)  return ['Mathematics', 'English', 'Hindi', 'Environmental Studies (EVS)', 'Drawing & Art', 'Physical Education', 'General Knowledge (GK)']
   if (g <= 5)  return ['Mathematics', 'English', 'Hindi', 'Environmental Studies (EVS)', 'Computer', 'Drawing & Art', 'General Knowledge (GK)', 'Physical Education', 'Moral Science', 'Sanskrit']
   if (g <= 8)  return ['Mathematics', 'English', 'Hindi', 'Science', 'Social Science', 'Sanskrit', 'Computer', 'Drawing & Art', 'Physical Education', 'General Knowledge (GK)']
@@ -144,9 +152,17 @@ function StepWelcome({ kid, onNext }: StepProps) {
 }
 
 function StepSchool({ kid, draft, setDraft, onNext, onBack }: StepProps) {
+  const updateKid    = useAuthStore(s => s.updateKid)
   const section      = draft.section ?? ''
   const classTeacher = draft.classTeacher ?? ''
   const school       = kid.school
+  const [editingSchool, setEditingSchool] = useState(false)
+  const [schoolDraft, setSchoolDraft]     = useState(school)
+
+  const saveSchool = () => {
+    updateKid(kid.id, { school: schoolDraft.trim() })
+    setEditingSchool(false)
+  }
 
   return (
     <motion.div {...slide(1)}>
@@ -156,11 +172,33 @@ function StepSchool({ kid, draft, setDraft, onNext, onBack }: StepProps) {
         <p style={{ fontSize: 13, color: '#64748B' }}>Tell us a bit about your class so we can tailor everything</p>
       </div>
 
-      {/* School name (read-only display) */}
+      {/* School name — editable inline (parents asked: "school is not editable??") */}
       <div style={{ padding: '12px 14px', borderRadius: 10, background: '#F0F9FF', border: '1px solid #BAE6FD', marginBottom: 18 }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: '#0369A1', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.05em' }}>School</div>
-        <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0C4A6E' }}>🏫 {school}</div>
-        <div style={{ fontSize: 11, color: '#0369A1', marginTop: 2 }}>{kid.board} · {kid.grade}</div>
+        {editingSchool ? (
+          <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+            <input
+              autoFocus value={schoolDraft}
+              onChange={e => setSchoolDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveSchool(); if (e.key === 'Escape') setEditingSchool(false) }}
+              placeholder="School name"
+              style={{ flex: 1, padding: '7px 10px', borderRadius: 8, border: '1.5px solid #7DD3FC', fontSize: 13, fontFamily: 'inherit', outline: 'none', color: '#0C4A6E', background: '#fff' }}
+            />
+            <button onClick={saveSchool}
+              style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: '#0284C7', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              Save
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0C4A6E', flex: 1 }}>🏫 {school || 'Add your school'}</div>
+            <button onClick={() => { setSchoolDraft(school); setEditingSchool(true) }}
+              style={{ padding: '4px 12px', borderRadius: 8, border: '1px solid #7DD3FC', background: '#fff', color: '#0284C7', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+              ✏️ Edit
+            </button>
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: '#0369A1', marginTop: 4 }}>{kid.board} · {kid.grade}</div>
       </div>
 
       {/* Section */}
@@ -442,12 +480,26 @@ function StepSubjects({ kid, draft, setDraft, onNext, onBack }: StepProps) {
 
 function StepActivities({ kid, draft, setDraft, onNext, onBack }: StepProps) {
   const selected = draft.activities ?? []
+  const [newActivity, setNewActivity] = useState('')
 
   const toggle = (act: string) => {
     setDraft(d => {
       const cur = d.activities ?? []
       return { ...d, activities: cur.includes(act) ? cur.filter(a => a !== act) : [...cur, act] }
     })
+  }
+
+  // "Can't find your hobby? Add it" — custom activities beyond the preset list.
+  const presetItems = ACTIVITIES_LIST.flatMap(g => g.items)
+  const customActivities = selected.filter(a => !presetItems.includes(a))
+  const isDuplicateActivity = [...presetItems, ...selected]
+    .some(a => a.toLowerCase() === newActivity.trim().toLowerCase())
+
+  const addCustomActivity = () => {
+    const trimmed = newActivity.trim()
+    if (!trimmed || isDuplicateActivity) return
+    setDraft(d => ({ ...d, activities: [...(d.activities ?? []), trimmed] }))
+    setNewActivity('')
   }
 
   return (
@@ -482,6 +534,51 @@ function StepActivities({ kid, draft, setDraft, onNext, onBack }: StepProps) {
         ))}
       </div>
 
+      {/* Custom hobby add — "can't find your hobby? add it" */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>
+          Can't find your hobby?
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={newActivity}
+            onChange={e => setNewActivity(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addCustomActivity() }}
+            placeholder="e.g. Karate, Gardening, Origami…"
+            style={{
+              flex: 1, padding: '9px 12px', borderRadius: 9,
+              border: `1.5px solid ${isDuplicateActivity && newActivity.trim() ? '#FCA5A5' : newActivity.trim() ? kid.color + '70' : '#E2E8F0'}`,
+              fontSize: 13, fontFamily: 'inherit', outline: 'none', color: '#0F172A', background: '#fff',
+            }}
+          />
+          <button
+            onClick={addCustomActivity}
+            disabled={!newActivity.trim() || isDuplicateActivity}
+            style={{
+              padding: '9px 16px', borderRadius: 9, border: 'none', flexShrink: 0, fontFamily: 'inherit',
+              background: newActivity.trim() && !isDuplicateActivity ? kid.color : '#E2E8F0',
+              color: newActivity.trim() && !isDuplicateActivity ? '#fff' : '#94A3B8',
+              fontSize: 13, fontWeight: 700,
+              cursor: newActivity.trim() && !isDuplicateActivity ? 'pointer' : 'not-allowed',
+            }}>
+            + Add
+          </button>
+        </div>
+        {customActivities.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 8 }}>
+            {customActivities.map(act => (
+              <button key={act} onClick={() => toggle(act)}
+                style={{
+                  padding: '7px 12px', borderRadius: 20, border: 'none',
+                  background: kid.color, color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                }}>
+                ✓ {act} ✕
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {selected.length > 0 && (
         <div style={{ padding: '10px 14px', borderRadius: 10, background: kid.colorLight, border: `1px solid ${kid.color}30`, marginBottom: 16 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: kid.color, marginBottom: 4 }}>Selected ({selected.length})</div>
@@ -503,7 +600,7 @@ function StepActivities({ kid, draft, setDraft, onNext, onBack }: StepProps) {
   )
 }
 
-function StepDream({ kid, draft, setDraft, onNext, onBack, isLast }: StepProps) {
+function StepDream({ kid, draft, setDraft, onNext, onBack }: StepProps) {
   const lifeGoal  = draft.lifeGoal ?? ''
   const targetYear = draft.targetYear ?? (new Date().getFullYear() + (18 - (kid.age ?? 10)))
   const [custom, setCustom] = useState(!LIFE_GOALS.includes(lifeGoal) && lifeGoal !== '')
@@ -722,7 +819,7 @@ export default function KidOnboarding() {
         targetYear:      draft.targetYear   ?? new Date().getFullYear() + 8,
       }
       markOnboarded(kid.id, finalData)
-      initKidData(kid.id, finalData)
+      initKidData(kid.id, finalData, kid.grade)
       setDone(true)
       setTimeout(() => navigate('/child'), 2200)
     }

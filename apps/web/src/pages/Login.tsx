@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, Shield, Users, Star, Sparkles, ChevronLeft, Plus, Trash2, Eye, Camera, LogOut } from 'lucide-react'
-import { useAuthStore, type UserRole, type KidProfile } from '@/store/authStore'
+import { useAuthStore, type UserRole } from '@/store/authStore'
 import { useSubscriptionStore, isSubscriptionActive, daysRemaining, type Subscription } from '@/store/subscriptionStore'
 import { isAdminPhone, verifyAdmin } from '@/lib/adminAuth'
 import { LOGIN_METHOD, AUTH_PROVIDER } from '@/lib/env'
@@ -343,6 +343,11 @@ function OtpStep({ onBack }: { onBack: () => void }) {
     if (result.success) return  // step changes → component transitions out
     if (result.locked) {
       setErr('Account locked. Too many wrong attempts.')
+      setDigits(['', '', '', '', '', ''])
+      return
+    }
+    if (result.error) {  // e.g. account suspended by the admin
+      setErr(result.error)
       setDigits(['', '', '', '', '', ''])
       return
     }

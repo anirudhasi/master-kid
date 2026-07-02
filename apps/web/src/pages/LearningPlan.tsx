@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { RefreshCw, ChevronUp, ChevronDown, CheckCircle, Clock, Zap, Target, BookOpen, FlaskConical, Dumbbell, Music2, AlertCircle, Trophy, Calendar, ChevronRight } from 'lucide-react'
+import { RefreshCw, ChevronUp, ChevronDown, Target, Trophy, ChevronRight } from 'lucide-react'
 import { useAppStore, type LearningSlot, type SlotType } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 
@@ -12,11 +12,6 @@ const SLOT_COLORS: Record<SlotType, { bg: string; border: string; color: string;
   test:     { bg:'#FEF2F2', border:'#FCA5A5', color:'#B91C1C', label:'Test ⚡'   },
   sports:   { bg:'#ECFEFF', border:'#67E8F9', color:'#0E7490', label:'Sports'    },
   activity: { bg:'#F5F3FF', border:'#C4B5FD', color:'#5B21B6', label:'Activity'  },
-}
-
-const SLOT_ICONS: Record<SlotType, React.ElementType> = {
-  study: BookOpen, revision: RefreshCw, practice: FlaskConical,
-  test: AlertCircle, sports: Dumbbell, activity: Music2,
 }
 
 const TIME_COLORS = {
@@ -33,7 +28,6 @@ const fade = (d = 0) => ({
 function SlotCard({ slot, dayLabel, index, total }: { slot: LearningSlot; dayLabel: string; index: number; total: number }) {
   const { toggleSlotComplete, moveSlot } = useAppStore()
   const sc   = SLOT_COLORS[slot.type]
-  const Icon = SLOT_ICONS[slot.type]
   return (
     <div style={{
       display:'flex', alignItems:'flex-start', gap:10,
@@ -229,7 +223,7 @@ export default function LearningPlan() {
                     </span>
                   </div>
                   <div style={{display:'flex',flexDirection:'column',gap:8}}>
-                    {group.slots.map((slot,idx) => (
+                    {group.slots.map((slot) => (
                       <SlotCard key={slot.id} slot={slot} dayLabel={currentDay.day}
                         index={currentDay.slots.findIndex(s=>s.id===slot.id)}
                         total={currentDay.slots.length} />

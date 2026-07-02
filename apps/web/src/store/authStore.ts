@@ -1,6 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService, isMockAuth, type AuthSession } from '@/services/authService'
+import { kidService, newKidId, isUuid } from '@/services/kidService'
+import { logActivity } from '@/store/activityLogStore'
+import { useAdminStore } from '@/store/adminStore'
+import { useKidsDataStore } from '@/store/kidsDataStore'
+import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { ADMIN_PHONE } from '@/lib/env'
 
 export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH' | 'ADMIN'
@@ -91,6 +96,8 @@ export interface AuthStore {
 
   // Actions
   init:           () => Promise<void>
+  /** Pull children from Supabase and push any local-only ones (cross-device sync). */
+  syncKids:       () => Promise<void>
   /** Start Google OAuth (redirect). Returns an error if the backend isn't set up. */
   loginWithGoogle: () => Promise<{ ok: boolean; error?: string }>
   adminLogin:     () => void
@@ -161,6 +168,12 @@ export const useAuthStore = create<AuthStore>()(
         const apply = (session: AuthSession | null) => {
           if (!session) { set({ ...BLANK_SESSION }); return }
           const id = normalizeId(session.phone)
+          // Access control: a suspended account cannot enter the app.
+          if (useAdminStore.getState().suspendedAccounts[id]) {
+            void authService.signOut()
+            set({ ...BLANK_SESSION })
+            return
+          }
           const existing = get().accounts[id]
           if (existing) {
             set({
@@ -182,9 +195,54 @@ export const useAuthStore = create<AuthStore>()(
               adminPhotoUrl: account.adminPhotoUrl, role: 'PARENT', kids: [],
             }))
           }
+          void get().syncKids()
         }
         apply(await authService.getSession())
         authService.onChange(apply)
+      },
+
+      // The cross-device fix: Supabase `children` is the source of truth for kid
+      // profiles. Local kids the server doesn't know are pushed up (legacy
+      // `kid-<ts>` ids are first migrated to UUIDs so they can be stored).
+      async syncKids() {
+        if (isMockAuth) return
+        // 1. Migrate legacy local ids so every kid can live in Postgres.
+        for (const kid of get().kids) {
+          if (isUuid(kid.id)) continue
+          const newId = newKidId()
+          useKidsDataStore.getState().migrateKidId(kid.id, newId)
+          const subStore = useSubscriptionStore.getState()
+          const sub = subStore.subs[kid.id]
+          if (sub) { subStore._set({ ...sub, childId: newId }); subStore._remove(kid.id) }
+          set(s => {
+            const kids = s.kids.map(k => k.id === kid.id ? { ...k, id: newId } : k)
+            const account = s.accounts[s.activePhone]
+            return {
+              kids,
+              activeKidId: s.activeKidId === kid.id ? newId : s.activeKidId,
+              accounts: account ? { ...s.accounts, [s.activePhone]: { ...account, kids } } : s.accounts,
+            }
+          })
+        }
+
+        // 2. Pull from the server; push local kids it doesn't have yet.
+        const server = await kidService.fetchKids()
+        if (server === null) return   // no backend / no session — stay local
+        const serverIds = new Set(server.map(k => k.id))
+        const localOnly = get().kids.filter(k => !serverIds.has(k.id))
+        for (const kid of localOnly) await kidService.upsertKid(kid)
+
+        // 3. Server wins for kids it knows; freshly pushed ones stay as-is.
+        const merged = [...server, ...localOnly]
+        set(s => {
+          const account = s.accounts[s.activePhone]
+          const activeStillExists = merged.some(k => k.id === s.activeKidId)
+          return {
+            kids: merged,
+            activeKidId: activeStillExists ? s.activeKidId : null,
+            accounts: account ? { ...s.accounts, [s.activePhone]: { ...account, kids: merged } } : s.accounts,
+          }
+        })
       },
 
       async loginWithGoogle() {
@@ -272,6 +330,14 @@ export const useAuthStore = create<AuthStore>()(
         const correct = result.ok
 
         if (correct) {
+          // Access control: suspended accounts are turned away at the door.
+          if (useAdminStore.getState().suspendedAccounts[pendingPhone]) {
+            void authService.signOut()
+            return {
+              success: false, locked: false, lockedUntil: 0, attemptsLeft: 0,
+              error: 'This account has been suspended. Contact support.',
+            }
+          }
           const existing = accounts[pendingPhone]
           const clearedAttempts = { ...DEFAULT_ATTEMPTS }
 
@@ -287,6 +353,8 @@ export const useAuthStore = create<AuthStore>()(
               kids: existing.kids,
               phoneAttempts: { ...s.phoneAttempts, [pendingPhone]: clearedAttempts },
             }))
+            logActivity('login', pendingPhone, 'Signed in')
+            void get().syncKids()
           } else {
             set(s => ({
               step: 'setup',
@@ -346,6 +414,9 @@ export const useAuthStore = create<AuthStore>()(
             [pendingPhone]: { ...DEFAULT_ATTEMPTS },
           },
         }))
+        logActivity('signup', pendingPhone, `New account: ${name} (${role})`)
+        void kidService.upsertAccount({ name, role })
+        void get().syncKids()
       },
 
       updateAdmin(patch) {
@@ -360,6 +431,7 @@ export const useAuthStore = create<AuthStore>()(
             accounts: { ...s.accounts, [s.activePhone]: updated },
           }
         })
+        void kidService.upsertAccount({ name: patch.adminName, avatarUrl: patch.adminPhotoUrl })
       },
 
       selectProfile(kidId) {
@@ -367,7 +439,7 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       addKid(kid) {
-        const id     = `kid-${Date.now()}`
+        const id     = newKidId()
         const newKid: KidProfile = { ...kid, id, isOnboarded: false }
         set(s => {
           const newKids  = [...s.kids, newKid]
@@ -379,6 +451,8 @@ export const useAuthStore = create<AuthStore>()(
               : s.accounts,
           }
         })
+        logActivity('kid_added', get().activePhone, `Added child: ${newKid.name} (${newKid.grade})`, id)
+        void kidService.upsertKid(newKid)
       },
 
       updateKid(kidId, patch) {
@@ -392,6 +466,8 @@ export const useAuthStore = create<AuthStore>()(
               : s.accounts,
           }
         })
+        const updated = get().kids.find(k => k.id === kidId)
+        if (updated) void kidService.upsertKid(updated)
       },
 
       markOnboarded(kidId, data) {
@@ -407,9 +483,15 @@ export const useAuthStore = create<AuthStore>()(
               : s.accounts,
           }
         })
+        const kid = get().kids.find(k => k.id === kidId)
+        if (kid) {
+          logActivity('kid_onboarded', get().activePhone, `Onboarding completed: ${kid.name}`, kidId)
+          void kidService.upsertKid(kid)
+        }
       },
 
       removeKid(kidId) {
+        const removed = get().kids.find(k => k.id === kidId)
         set(s => {
           const newKids = s.kids.filter(k => k.id !== kidId)
           const account = s.accounts[s.activePhone]
@@ -421,6 +503,8 @@ export const useAuthStore = create<AuthStore>()(
               : s.accounts,
           }
         })
+        if (removed) logActivity('kid_removed', get().activePhone, `Removed child: ${removed.name}`, kidId)
+        void kidService.deleteKid(kidId)
       },
 
       adminRemoveAccount(phone) {
@@ -473,7 +557,7 @@ export const useAuthStore = create<AuthStore>()(
         set(s => {
           const acct = s.accounts[normalized]
           if (!acct) return s
-          const newKid: KidProfile = { ...kid, id: `kid-${Date.now()}`, isOnboarded: false }
+          const newKid: KidProfile = { ...kid, id: newKidId(), isOnboarded: false }
           const newKids = [...acct.kids, newKid]
           const accounts = { ...s.accounts, [normalized]: { ...acct, kids: newKids } }
           return normalized === s.activePhone ? { accounts, kids: newKids } : { accounts }
@@ -481,6 +565,8 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       logout() {
+        const phone = get().activePhone
+        if (phone) logActivity('logout', phone, 'Signed out')
         void authService.signOut()
         set({ ...BLANK_SESSION })
       },

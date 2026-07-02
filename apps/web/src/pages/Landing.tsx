@@ -115,7 +115,7 @@ export default function Landing() {
       <motion.div {...fade(0.25)} className="card" style={{ padding: '28px 32px', marginBottom: 48 }}>
         <p className="label" style={{ marginBottom: 20 }}>Product roadmap</p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
-          {phases.map((p, i) => (
+          {phases.map((p) => (
             <div key={p.phase} style={{ borderLeft: `3px solid ${p.color}`, paddingLeft: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: p.color, marginBottom: 4 }}>{p.phase}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#111827', marginBottom: 4 }}>{p.label}</div>

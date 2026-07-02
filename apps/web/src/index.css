@@ -261,9 +261,22 @@ body, #root {
 /* ── Responsive ───────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar      { display: none; }
-  .content-area { margin-left: 0; padding-bottom: 60px; }
+  aside         { display: none !important; }        /* desktop sidebar (inline-styled) */
+  .mobile-topbar{ display: flex !important; }        /* hamburger + brand */
+  .content-area { margin-left: 0 !important; padding-top: 48px; padding-bottom: 60px; }
   .mobile-tabbar{ display: flex; }
   .page-container { padding: 14px 14px 80px; }
+
+  /* Common grid collapses */
+  .resp-2col      { grid-template-columns: 1fr !important; }
+  .syllabus-grid  { grid-template-columns: 1fr !important; }
+  .syllabus-subjects {
+    position: static !important;
+    flex-direction: row !important;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  .syllabus-subjects > button { min-width: 150px; flex-shrink: 0; }
 }
 
 @media (min-width: 769px) {

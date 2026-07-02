@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { CheckCircle2, Circle, ChevronDown, ChevronRight, BookOpen, Edit3, Check, School, Pencil } from 'lucide-react'
-import { type SyllabusSubject, type SyllabusChapter } from '@/store/appStore'
+import { CheckCircle2, Circle, ChevronDown, ChevronRight, BookOpen, Edit3, Check, School, Pencil, Trash2, Plus, FileText } from 'lucide-react'
+import { type SyllabusChapter } from '@/store/appStore'
+import { chapterPct, subjectPct } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useAuthStore } from '@/store/authStore'
 
@@ -12,17 +14,6 @@ const STATUS_CONFIG = {
   'revised':      { label: 'Revised',     cls: 'status-revised',      dot: '#F59E0B' },
 }
 
-function topicPct(ch: SyllabusChapter) {
-  if (!ch.topics.length) return 0
-  return Math.round((ch.topics.filter(t => t.isCompleted).length / ch.topics.length) * 100)
-}
-
-function subjectPct(sub: SyllabusSubject) {
-  const total = sub.chapters.reduce((a, c) => a + c.topics.length, 0)
-  const done  = sub.chapters.reduce((a, c) => a + c.topics.filter(t => t.isCompleted).length, 0)
-  return total > 0 ? Math.round((done / total) * 100) : 0
-}
-
 function daysUntil(dateStr: string) {
   const diff = new Date(dateStr).getTime() - Date.now()
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
@@ -31,10 +22,11 @@ function daysUntil(dateStr: string) {
 function ChapterCard({ chapter, subjectId, subjectColor }: {
   chapter: SyllabusChapter; subjectId: string; subjectColor: string
 }) {
-  const { toggleTopicComplete, updateChapterStatus, toggleChapterInSchool } = useKidStore()
+  const { toggleTopicComplete, updateChapterStatus, toggleChapterInSchool, removeChapter } = useKidStore()
   const [open, setOpen] = useState(false)
   const [editNote, setEditNote] = useState(false)
-  const pct   = topicPct(chapter)
+  const [confirmDel, setConfirmDel] = useState(false)
+  const pct   = chapterPct(chapter)
   const sc    = STATUS_CONFIG[chapter.status]
   const days  = chapter.testScheduled ? daysUntil(chapter.testScheduled) : null
 
@@ -110,13 +102,37 @@ function ChapterCard({ chapter, subjectId, subjectColor }: {
           <option value="revised">Revised</option>
         </select>
 
+        {/* Delete chapter (edit option from the change request) */}
+        {confirmDel ? (
+          <span style={{ display: 'inline-flex', gap: 4 }} onClick={e => e.stopPropagation()}>
+            <button onClick={() => removeChapter(subjectId, chapter.id)}
+              style={{ fontSize: 10.5, padding: '3px 8px', borderRadius: 6, border: 'none', background: '#DC2626', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>
+              Delete
+            </button>
+            <button onClick={() => setConfirmDel(false)}
+              style={{ fontSize: 10.5, padding: '3px 8px', borderRadius: 6, border: '1px solid #E2E8F0', background: '#fff', color: '#64748B', cursor: 'pointer' }}>
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button onClick={e => { e.stopPropagation(); setConfirmDel(true) }} title="Delete chapter"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', display: 'flex', padding: 2 }}>
+            <Trash2 size={13} />
+          </button>
+        )}
+
         {open ? <ChevronDown size={14} color="#94A3B8" /> : <ChevronRight size={14} color="#94A3B8" />}
       </div>
 
       {/* Topics expanded */}
       {open && (
         <div style={{ borderTop: '1px solid #F1F5F9', padding: '10px 14px 12px', background: '#FAFBFF' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
+          {chapter.topics.length === 0 && (
+            <div style={{ fontSize: 12, color: '#94A3B8', marginBottom: 8 }}>
+              No sub-topics for this chapter — use the status dropdown (Not Started → In Progress → Completed) to track it.
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }} className="resp-2col">
             {chapter.topics.map(topic => (
               <button key={topic.id}
                 onClick={() => toggleTopicComplete(subjectId, chapter.id, topic.id)}
@@ -206,13 +222,28 @@ function EditableBook({ subjectId, textbook, teacher, color }: {
 }
 
 export default function Syllabus() {
-  const { subjects } = useKidStore()
+  const { subjects, ensureChapters, addChapter } = useKidStore()
   const { activeKidId, kids } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)
   const [activeSubject, setActiveSubject] = useState(subjects[0]?.id ?? '')
   const [filterStatus, setFilterStatus] = useState<'all' | SyllabusChapter['status']>('all')
+  const [newChapter, setNewChapter] = useState('')
+
+  // Preload "most probable" chapters for this class into any subject without them.
+  useEffect(() => {
+    if (activeKid && subjects.some(s => s.chapters.length === 0)) {
+      ensureChapters(activeKid.grade)
+    }
+  }, [activeKid?.id, subjects.length])
 
   const subject = subjects.find(s => s.id === activeSubject) ?? subjects[0]
+
+  const handleAddChapter = () => {
+    const name = newChapter.trim()
+    if (!name || !subject) return
+    addChapter(subject.id, name)
+    setNewChapter('')
+  }
 
   if (subjects.length === 0) {
     return (
@@ -252,10 +283,10 @@ export default function Syllabus() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 16, alignItems: 'start' }} className="syllabus-grid">
 
         {/* ── Subject list ─────────────────────────────── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'sticky', top: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, position: 'sticky', top: 20 }} className="syllabus-subjects">
           {subjects.map(sub => {
             const p = subjectPct(sub)
             const active = sub.id === activeSubject
@@ -298,6 +329,13 @@ export default function Syllabus() {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 28, fontWeight: 900, color: subject.color, lineHeight: 1 }}>{pct}%</div>
                 <div style={{ fontSize: 11, color: '#64748B' }}>{completedCh}/{subject.chapters.length} chapters done</div>
+                <Link to="/worksheets" style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6,
+                  fontSize: 11, fontWeight: 700, color: subject.color, textDecoration: 'none',
+                  padding: '3px 10px', borderRadius: 8, background: '#fff', border: `1px solid ${subject.color}40`,
+                }}>
+                  <FileText size={11} /> Worksheets
+                </Link>
               </div>
             </div>
             <div style={{ height: 8, background: 'rgba(255,255,255,0.6)', borderRadius: 6, overflow: 'hidden' }}>
@@ -328,6 +366,31 @@ export default function Syllabus() {
           {filtered.map(ch => (
             <ChapterCard key={ch.id} chapter={ch} subjectId={subject.id} subjectColor={subject.color} />
           ))}
+
+          {/* Add chapter (edit option from the change request) */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+            <input
+              value={newChapter}
+              onChange={e => setNewChapter(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') handleAddChapter() }}
+              placeholder={`Add a chapter to ${subject.name}…`}
+              style={{
+                flex: 1, padding: '9px 12px', borderRadius: 9, fontSize: 13, fontFamily: 'inherit',
+                border: `1.5px solid ${newChapter.trim() ? subject.color + '70' : '#E2E8F0'}`,
+                outline: 'none', background: '#fff', color: '#0F172A',
+              }}
+            />
+            <button onClick={handleAddChapter} disabled={!newChapter.trim()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5, padding: '9px 16px',
+                borderRadius: 9, border: 'none', fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+                background: newChapter.trim() ? subject.color : '#E2E8F0',
+                color: newChapter.trim() ? '#fff' : '#94A3B8',
+                cursor: newChapter.trim() ? 'pointer' : 'not-allowed', flexShrink: 0,
+              }}>
+              <Plus size={14} /> Add chapter
+            </button>
+          </div>
 
           {filtered.length === 0 && (
             <div className="card" style={{ padding: 40, textAlign: 'center' }}>

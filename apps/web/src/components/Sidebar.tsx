@@ -2,13 +2,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAppStore, getLevel } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
+import { subjectPct } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import {
   LayoutDashboard, User, BookOpen, CalendarDays, FileText,
-  Bot, Trophy, ClipboardList, Images, Drama, Award,
+  Bot, Trophy, Images, Drama, Award,
   Users, Rss, GraduationCap, Search, Tag,
   Menu, X, ChevronRight, LogOut, Shield,
-  Library, Newspaper, Smile, Bell,
+  Newspaper, Smile, Bell,
 } from 'lucide-react'
 
 type NavSection = { label: string; items: { icon: typeof LayoutDashboard; label: string; href: string }[] }
@@ -110,10 +111,10 @@ export default function Sidebar() {
 
   const displayLevel = getLevel(displayXP)
 
-  // Syllabus progress from live kid data
-  const totalTopics     = subjects.reduce((a, s) => a + s.chapters.reduce((b, c) => b + c.topics.length, 0), 0)
-  const completedTopics = subjects.reduce((a, s) => a + s.chapters.reduce((b, c) => b + c.topics.filter(t => t.isCompleted).length, 0), 0)
-  const overallPct      = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0
+  // Syllabus progress from live kid data (chapter progress rolls up per subject)
+  const overallPct = subjects.length > 0
+    ? Math.round(subjects.reduce((a, s) => a + subjectPct(s), 0) / subjects.length)
+    : 0
 
   const isActive = (href: string) => loc.pathname === href.split('?')[0]
 
@@ -254,7 +255,7 @@ export default function Sidebar() {
       )}
 
       {/* Syllabus progress bar (kid only, when subjects data exists) */}
-      {!isAdmin && totalTopics > 0 && (
+      {!isAdmin && subjects.length > 0 && (
         <div style={{ marginTop: 6, padding: '6px 8px', borderRadius: 7, background: 'rgba(255,255,255,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
             <span style={{ fontSize: 9.5, color: '#64748B', fontWeight: 600 }}>SYLLABUS PROGRESS</span>

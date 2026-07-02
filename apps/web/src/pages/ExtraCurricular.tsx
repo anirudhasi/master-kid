@@ -55,7 +55,7 @@ export default function ExtraCurricular() {
         targetName: '', targetDate: '',
       })
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [kid?.id])
 
   if (!kid) return null
@@ -266,7 +266,7 @@ function ActivityDetail({ activity, age, onBack, onDeleted }: { activity: Activi
 // Parent's window into the coach course: milestone progress (read-only),
 // secure 2-way messaging, and UPI payment.
 function ParentCoachPanel({ enrollmentId }: { enrollmentId: string }) {
-  const { activePhone, adminName } = useAuthStore()
+  const { activePhone: _activePhone, adminName } = useAuthStore()
   const enrollment = useCoachStore(s => s.enrollments[enrollmentId])
   const course = useCoachStore(s => (enrollment ? s.courses[enrollment.courseId] : undefined))
   const messages = useCoachStore(s => s.messages[enrollmentId] ?? [])

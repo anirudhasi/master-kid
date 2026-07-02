@@ -10,6 +10,8 @@ import {
   type Mood,
 } from './appStore'
 import { type KidOnboardingData } from './authStore'
+import { chaptersFor } from '@/data/syllabusCatalog'
+import { logActivity } from '@/store/activityLogStore'
 
 // ── Per-kid data shape ────────────────────────────────────────────────────────
 export interface KidData {
@@ -91,18 +93,63 @@ function getSubjectMeta(name: string) {
   return SUBJECT_META[name] ?? { icon: '📚', color: '#64748B', colorLight: '#F8FAFC', textbook: name }
 }
 
-export function createSubjectStub(name: string, kidId: string): SyllabusSubject {
+// Sequential ~2-week windows across the Indian academic year (June → March).
+function chapterWindows(count: number): { start: string; end: string }[] {
+  const now = new Date()
+  const yearStart = new Date(now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1, 5, 1)
+  const totalDays = 280 // June 1 → mid-March
+  const span = Math.max(7, Math.floor(totalDays / Math.max(count, 1)))
+  const iso = (d: Date) => d.toISOString().split('T')[0]
+  return Array.from({ length: count }, (_, i) => {
+    const s = new Date(yearStart); s.setDate(s.getDate() + i * span)
+    const e = new Date(s); e.setDate(e.getDate() + span - 3)
+    return { start: iso(s), end: iso(e) }
+  })
+}
+
+/** Build the preloaded chapter list for a subject from the syllabus catalog. */
+export function buildChapters(subjectName: string, grade: string, subjectId: string): SyllabusSubject['chapters'] {
+  const names = chaptersFor(grade, subjectName)
+  const windows = chapterWindows(names.length)
+  return names.map((name, i) => ({
+    id: `${subjectId}-ch${i + 1}-${Math.random().toString(36).slice(2, 6)}`,
+    name,
+    topics: [],
+    targetStartDate: windows[i].start,
+    targetEndDate: windows[i].end,
+    status: 'not-started' as const,
+    notes: '',
+  }))
+}
+
+export function createSubjectStub(name: string, kidId: string, grade?: string): SyllabusSubject {
   const meta = getSubjectMeta(name)
+  const id = `${kidId}-${name.toLowerCase().replace(/[\s()&/+.]+/g, '-')}`
   return {
-    id: `${kidId}-${name.toLowerCase().replace(/[\s()&/+.]+/g, '-')}`,
+    id,
     name,
     icon: meta.icon,
     color: meta.color,
     colorLight: meta.colorLight,
     textbook: meta.textbook,
     teacher: 'TBD',
-    chapters: [],
+    chapters: grade ? buildChapters(name, grade, id) : [],
   }
+}
+
+// ── Progress helpers (chapter progress rolls up into the subject bar) ─────────
+export function chapterPct(ch: SyllabusChapter): number {
+  if (ch.topics.length > 0) {
+    return Math.round((ch.topics.filter(t => t.isCompleted).length / ch.topics.length) * 100)
+  }
+  if (ch.status === 'completed' || ch.status === 'revised') return 100
+  if (ch.status === 'in-progress') return 50
+  return 0
+}
+
+export function subjectPct(sub: SyllabusSubject): number {
+  if (!sub.chapters.length) return 0
+  return Math.round(sub.chapters.reduce((a, c) => a + chapterPct(c), 0) / sub.chapters.length)
 }
 
 // ── Badge awarding helper ─────────────────────────────────────────────────────
@@ -123,7 +170,13 @@ function awardBadges(xp: number, streak: number, badges: string[]): string[] {
 interface KidsDataState {
   kidsData: Record<string, KidData>
 
-  initKidData:              (kidId: string, onboarding: KidOnboardingData) => void
+  initKidData:              (kidId: string, onboarding: KidOnboardingData, grade?: string) => void
+  /** Re-key all data when a legacy local kid id is migrated to a UUID. */
+  migrateKidId:             (oldId: string, newId: string) => void
+  /** Backfill preloaded catalog chapters into subjects that still have none. */
+  ensureChapters:           (kidId: string, grade: string) => void
+  addChapter:               (kidId: string, subjectId: string, name: string) => void
+  removeChapter:            (kidId: string, subjectId: string, chapterId: string) => void
   addLog:                   (kidId: string, subject: string, activity: string, durationMinutes: number, mood: Mood) => void
   toggleTopicComplete:      (kidId: string, subjectId: string, chapterId: string, topicId: string) => void
   updateChapterStatus:      (kidId: string, subjectId: string, chapterId: string, status: SyllabusChapter['status']) => void
@@ -141,14 +194,14 @@ export const useKidsDataStore = create<KidsDataState>()(
     (set) => ({
       kidsData: {},   // starts empty — each user's kids are added on onboarding
 
-      initKidData(kidId, onboarding) {
+      initKidData(kidId, onboarding, grade) {
         set(s => {
           if (s.kidsData[kidId]) return s
           return {
             kidsData: {
               ...s.kidsData,
               [kidId]: {
-                subjects:       onboarding.subjects.map(name => createSubjectStub(name, kidId)),
+                subjects:       onboarding.subjects.map(name => createSubjectStub(name, kidId, grade)),
                 olympiads:      [],
                 weeklySchedule: [],
                 worksheets:     [],
@@ -160,6 +213,82 @@ export const useKidsDataStore = create<KidsDataState>()(
             },
           }
         })
+      },
+
+      migrateKidId(oldId, newId) {
+        set(s => {
+          const data = s.kidsData[oldId]
+          if (!data) return s
+          const kidsData = { ...s.kidsData, [newId]: data }
+          delete kidsData[oldId]
+          return { kidsData }
+        })
+      },
+
+      ensureChapters(kidId, grade) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          if (!kid.subjects.some(sub => sub.chapters.length === 0)) return s
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: {
+                ...kid,
+                subjects: kid.subjects.map(sub =>
+                  sub.chapters.length > 0 ? sub : { ...sub, chapters: buildChapters(sub.name, grade, sub.id) }
+                ),
+              },
+            },
+          }
+        })
+      },
+
+      addChapter(kidId, subjectId, name) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          const today = new Date()
+          const end = new Date(today); end.setDate(end.getDate() + 14)
+          const iso = (d: Date) => d.toISOString().split('T')[0]
+          const chapter = {
+            id: `${subjectId}-ch-${Date.now().toString(36)}`,
+            name, topics: [],
+            targetStartDate: iso(today), targetEndDate: iso(end),
+            status: 'not-started' as const, notes: '',
+          }
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: {
+                ...kid,
+                subjects: kid.subjects.map(sub =>
+                  sub.id !== subjectId ? sub : { ...sub, chapters: [...sub.chapters, chapter] }
+                ),
+              },
+            },
+          }
+        })
+        logActivity('chapter_added', kidId, `Chapter added: ${name}`, kidId)
+      },
+
+      removeChapter(kidId, subjectId, chapterId) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: {
+                ...kid,
+                subjects: kid.subjects.map(sub =>
+                  sub.id !== subjectId ? sub : { ...sub, chapters: sub.chapters.filter(c => c.id !== chapterId) }
+                ),
+              },
+            },
+          }
+        })
+        logActivity('chapter_removed', kidId, 'Chapter removed', kidId)
       },
 
       addLog(kidId, subject, activity, durationMinutes, mood) {
@@ -309,6 +438,7 @@ export const useKidsDataStore = create<KidsDataState>()(
       },
 
       submitWorksheet(kidId, worksheetId, score) {
+        logActivity('worksheet_submitted', kidId, `Worksheet ${worksheetId} scored ${score}%`, kidId)
         set(s => {
           const kid = s.kidsData[kidId]
           if (!kid) return s

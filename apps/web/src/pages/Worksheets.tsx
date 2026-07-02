@@ -289,7 +289,7 @@ function AssignedWorksheets() {
       </div>
 
       {/* Worksheet cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }} className="resp-2col">
         {filtered.map(ws => {
           const sub = subjects.find(s => s.name === ws.subject)
           const dc  = DIFFICULTY_CONFIG[ws.difficulty]
