@@ -10,7 +10,8 @@ import { supabase } from '@/lib/supabase'
 export type ActivityEvent =
   | 'login' | 'logout' | 'signup'
   | 'kid_added' | 'kid_updated' | 'kid_removed' | 'kid_onboarded'
-  | 'worksheet_submitted' | 'chapter_added' | 'chapter_removed'
+  | 'worksheet_submitted' | 'worksheet_assigned' | 'worksheet_downloaded'
+  | 'chapter_added' | 'chapter_removed'
   | 'log_added' | 'subscription_started'
   | 'admin_action'
 

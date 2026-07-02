@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Phone, Shield, Users, Star, Sparkles, ChevronLeft, Plus, Trash2, Eye, Camera, LogOut } from 'lucide-react'
+import { LogoIcon } from '@/components/Logo'
 import { useAuthStore, type UserRole } from '@/store/authStore'
 import { useSubscriptionStore, isSubscriptionActive, daysRemaining, type Subscription } from '@/store/subscriptionStore'
 import { isAdminPhone, verifyAdmin } from '@/lib/adminAuth'
@@ -1063,11 +1064,11 @@ export default function Login() {
           }}>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: `linear-gradient(135deg,${P},#9B59FF)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, boxShadow: `0 4px 16px ${PS}` }}>
-              <span style={{ fontWeight: 900, color: '#fff', fontSize: 18, fontFamily: FONT }}>M</span>
-            </div>
+            <LogoIcon size={44} />
             <div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: '#F1F5F9', letterSpacing: '-0.03em', fontFamily: FONT }}>Master-Kids</div>
+              <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', fontFamily: FONT }}>
+                <span style={{ color: '#F1F5F9' }}>MASTER</span><span style={{ color: '#159A93' }}>KIDS</span>
+              </div>
               <div style={{ fontSize: 9, color: '#475569', letterSpacing: '0.12em', fontWeight: 700, textTransform: 'uppercase' }}>Cradle to Career</div>
             </div>
           </div>

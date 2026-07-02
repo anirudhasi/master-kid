@@ -1,10 +1,14 @@
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Circle, Upload, ChevronRight, Award, Clock, Lightbulb } from 'lucide-react'
+import { CheckCircle2, Circle, Upload, ChevronRight, Award, Clock, Lightbulb, ExternalLink, Trash2, ClipboardCheck } from 'lucide-react'
 import { type Worksheet } from '@/store/appStore'
+import { type AssignedSheet } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useAuthStore } from '@/store/authStore'
+import { useWalletStore, WORKSHEET_COST } from '@/store/walletStore'
+import { logActivity } from '@/store/activityLogStore'
 import Resources from '@/pages/Resources'
+import Olympiad from '@/pages/Olympiad'
 
 const FONT = "'Nunito', 'Inter', sans-serif"
 
@@ -178,13 +182,15 @@ function WorksheetAttempt({ ws, onClose }: { ws: Worksheet; onClose: () => void 
   )
 }
 
-// Merged page: "Assigned to me" (this child's worksheets) + "Library" (full catalog).
+// One practice home: printable Worksheet Library (default), interactive
+// Olympiad practice (merged in per user feedback — no separate section), and
+// "Assigned to me" for teacher/AI-assigned sheets.
 export default function Worksheets() {
-  const [tab, setTab] = useState<'assigned' | 'library'>('assigned')
+  const [tab, setTab] = useState<'library' | 'olympiad' | 'assigned'>('library')
   return (
     <div className="page-container" style={{ paddingBottom: 0 }}>
-      <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 11, padding: 3, margin: '0 0 4px' }}>
-        {([['assigned', 'Assigned to me'], ['library', 'Worksheet Library']] as const).map(([k, label]) => (
+      <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 11, padding: 3, margin: '0 0 4px', flexWrap: 'wrap' }}>
+        {([['library', '📄 Worksheet Library'], ['olympiad', '🏆 Olympiad Practice'], ['assigned', '📋 Assigned to me']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             style={{ padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800,
               background: tab === k ? '#fff' : 'transparent', color: tab === k ? '#4F46E5' : '#64748B',
@@ -193,13 +199,90 @@ export default function Worksheets() {
           </button>
         ))}
       </div>
-      {tab === 'assigned' ? <AssignedWorksheets /> : <Resources />}
+      {tab === 'library' ? <Resources /> : tab === 'olympiad' ? <Olympiad /> : <AssignedWorksheets />}
     </div>
   )
 }
 
+// One assigned-PDF card: dates, open (wallet), marks entry, remove.
+function AssignedSheetCard({ sheet }: { sheet: AssignedSheet }) {
+  const { completeSheet, unassignSheet } = useKidStore()
+  const { activePhone, activeKidId } = useAuthStore()
+  const wallet = useWalletStore()
+  const [entering, setEntering] = useState(false)
+  const [score, setScore] = useState('')
+  const [outOf, setOutOf] = useState('')
+
+  const overdue = sheet.status === 'assigned' && new Date(sheet.dueDate) < new Date()
+  const fmt = (d: string) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+
+  const open = () => {
+    const res = wallet.buyWorksheet(activePhone, sheet.url, sheet.title)
+    if (!res.ok) { alert('Not enough wallet credits to open this sheet.'); return }
+    if (res.charged) logActivity('worksheet_downloaded', activePhone, `Downloaded: ${sheet.title} (−₹${WORKSHEET_COST})`, activeKidId ?? undefined)
+    window.open(sheet.url, '_blank', 'noopener,noreferrer')
+  }
+
+  const saveMarks = () => {
+    const s = parseInt(score); const m = parseInt(outOf)
+    if (isNaN(s) || isNaN(m) || m <= 0 || s < 0 || s > m) return
+    completeSheet(sheet.id, s, m)
+    setEntering(false)
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+      style={{ padding: '14px 16px', borderRadius: 12, background: '#fff', border: `1.5px solid ${overdue ? '#FECACA' : '#E2E8F0'}` }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+        <span style={{ fontSize: 22 }}>📄</span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', marginBottom: 3 }}>{sheet.title}</div>
+          <div style={{ fontSize: 11, color: '#64748B' }}>{sheet.subjectName} · Class {sheet.classNum} · Assigned {fmt(sheet.assignedDate)} · Due {fmt(sheet.dueDate)}</div>
+        </div>
+        {sheet.status === 'completed' && sheet.score !== undefined ? (
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#059669' }}>{sheet.score}/{sheet.maxScore}</div>
+            <div style={{ fontSize: 9.5, color: '#94A3B8' }}>marked {sheet.completedDate && fmt(sheet.completedDate)}</div>
+          </div>
+        ) : overdue ? (
+          <span style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 10, fontWeight: 700, background: '#FFF5F5', color: '#DC2626', flexShrink: 0 }}>⚠ Overdue</span>
+        ) : (
+          <span style={{ fontSize: 10.5, padding: '2px 8px', borderRadius: 10, fontWeight: 700, background: '#EEF2FF', color: '#4338CA', flexShrink: 0 }}>Assigned</span>
+        )}
+      </div>
+
+      {entering ? (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <input value={score} onChange={e => setScore(e.target.value)} placeholder="Marks" inputMode="numeric"
+            style={{ width: 70, padding: '7px 10px', borderRadius: 8, border: '1.5px solid #C7D2FE', fontSize: 12.5, outline: 'none' }} />
+          <span style={{ color: '#94A3B8', fontSize: 12 }}>out of</span>
+          <input value={outOf} onChange={e => setOutOf(e.target.value)} placeholder="Total" inputMode="numeric"
+            style={{ width: 70, padding: '7px 10px', borderRadius: 8, border: '1.5px solid #C7D2FE', fontSize: 12.5, outline: 'none' }} />
+          <button onClick={saveMarks} className="btn btn-primary" style={{ fontSize: 11.5, padding: '7px 14px' }}>Save (+15 XP)</button>
+          <button onClick={() => setEntering(false)} className="btn btn-ghost" style={{ fontSize: 11.5, padding: '7px 10px' }}>Cancel</button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={open} className="btn btn-primary" style={{ fontSize: 11.5, padding: '6px 12px' }}>
+            <ExternalLink size={12} /> Open / Print
+          </button>
+          {sheet.status === 'assigned' && (
+            <button onClick={() => setEntering(true)} className="btn btn-secondary" style={{ fontSize: 11.5, padding: '6px 12px' }}>
+              <ClipboardCheck size={12} /> Enter marks
+            </button>
+          )}
+          <button onClick={() => unassignSheet(sheet.id)} title="Remove assignment"
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', padding: '6px 9px', borderRadius: 8, border: '1px solid #FECACA', background: '#FFF5F5', color: '#DC2626', cursor: 'pointer' }}>
+            <Trash2 size={12} />
+          </button>
+        </div>
+      )}
+    </motion.div>
+  )
+}
+
 function AssignedWorksheets() {
-  const { worksheets, subjects } = useKidStore()
+  const { worksheets, subjects, assignedSheets } = useKidStore()
   const { activeKidId, kids } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)
   const [filterSubject, setFilterSubject] = useState('All')
@@ -211,17 +294,25 @@ function AssignedWorksheets() {
       <div className="page-container">
         <div className="page-header">
           <div>
-            <div className="label" style={{ marginBottom: 4 }}>{activeKid?.grade} · AI-Generated</div>
-            <h1 className="page-title">Worksheets</h1>
+            <div className="label" style={{ marginBottom: 4 }}>{activeKid?.grade}</div>
+            <h1 className="page-title">Assigned to {activeKid?.name ?? 'me'}</h1>
+            <p className="page-subtitle">Sheets assigned from the Worksheet Library · record marks after solving · +15 XP each</p>
           </div>
         </div>
-        <div className="card" style={{ padding: 48, textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>No worksheets yet</div>
-          <div style={{ fontSize: 13, color: '#64748B' }}>
-            Worksheets for {activeKid?.name} will be assigned by their teacher or generated by AI.
+
+        {assignedSheets.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }} className="resp-2col">
+            {assignedSheets.map(s => <AssignedSheetCard key={s.id} sheet={s} />)}
           </div>
-        </div>
+        ) : (
+          <div className="card" style={{ padding: 48, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 16 }}>📋</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', marginBottom: 8 }}>Nothing assigned yet</div>
+            <div style={{ fontSize: 13, color: '#64748B' }}>
+              Open the Worksheet Library tab and tap "Assign" on any sheet — it will appear here with its due date.
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -257,6 +348,13 @@ function AssignedWorksheets() {
           )}
         </div>
       </div>
+
+      {/* Assigned library sheets (from the parent) */}
+      {assignedSheets.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12, marginBottom: 16 }} className="resp-2col">
+          {assignedSheets.map(s => <AssignedSheetCard key={s.id} sheet={s} />)}
+        </div>
+      )}
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>

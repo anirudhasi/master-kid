@@ -1,3 +1,4 @@
+import { LogoIcon } from '@/components/Logo'
 import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { useState } from 'react'
@@ -28,15 +29,10 @@ export default function Navbar() {
 
           {/* Logo */}
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 10,
-              background: 'linear-gradient(135deg, #4F46E5, #7C3AED)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 15, color: '#fff', fontWeight: 800, boxShadow: '0 2px 8px rgba(79,70,229,0.3)',
-            }}>M</div>
+            <LogoIcon size={32} />
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: '#111827', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                Master-Kids
+              <div style={{ fontSize: 15, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1 }}>
+                <span style={{ color: '#10243F' }}>MASTER</span><span style={{ color: '#159A93' }}>KIDS</span>
               </div>
               <div style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: '0.04em', fontWeight: 500 }}>
                 DAILY PROGRESS TRACKING

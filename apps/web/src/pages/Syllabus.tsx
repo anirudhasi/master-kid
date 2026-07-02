@@ -6,6 +6,9 @@ import { type SyllabusChapter } from '@/store/appStore'
 import { chapterPct, subjectPct } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useAuthStore } from '@/store/authStore'
+import Academic from '@/pages/Academic'
+
+const FONT = "'Nunito', 'Inter', sans-serif"
 
 const STATUS_CONFIG = {
   'not-started': { label: 'Not Started', cls: 'status-not-started', dot: '#94A3B8' },
@@ -221,7 +224,28 @@ function EditableBook({ subjectId, textbook, teacher, color }: {
   )
 }
 
+// One "Academics" home: chapter/syllabus progress + lessons & digital books
+// were two separate pages doing overlapping jobs — merged per user feedback.
 export default function Syllabus() {
+  const [tab, setTab] = useState<'progress' | 'lessons'>('progress')
+  return (
+    <div className="page-container" style={{ paddingBottom: 0 }}>
+      <div style={{ display: 'inline-flex', background: '#F1F5F9', borderRadius: 11, padding: 3, margin: '0 0 4px' }}>
+        {([['progress', '📊 Syllabus & Progress'], ['lessons', '📚 Lessons & Books']] as const).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)}
+            style={{ padding: '7px 16px', borderRadius: 9, border: 'none', cursor: 'pointer', fontFamily: FONT, fontSize: 13, fontWeight: 800,
+              background: tab === k ? '#fff' : 'transparent', color: tab === k ? '#4F46E5' : '#64748B',
+              boxShadow: tab === k ? '0 1px 4px rgba(15,23,42,0.1)' : 'none' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'progress' ? <ChapterProgress /> : <Academic />}
+    </div>
+  )
+}
+
+function ChapterProgress() {
   const { subjects, ensureChapters, addChapter } = useKidStore()
   const { activeKidId, kids } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react'
+import { LogoIcon } from '@/components/Logo'
 import { useAuthStore, type KidOnboardingData, type KidProfile } from '@/store/authStore'
 import { useKidsDataStore } from '@/store/kidsDataStore'
 
@@ -845,13 +846,11 @@ export default function KidOnboarding() {
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: 'linear-gradient(135deg,#4F46E5,#7C3AED)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-          }}>M</div>
+          <LogoIcon size={36} />
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: '#0F172A' }}>Master-Kids</div>
+            <div style={{ fontSize: 14, fontWeight: 900 }}>
+              <span style={{ color: '#10243F' }}>MASTER</span><span style={{ color: '#159A93' }}>KIDS</span>
+            </div>
             <div style={{ fontSize: 9, color: '#94A3B8', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Profile Setup</div>
           </div>
         </div>

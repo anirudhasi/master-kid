@@ -13,12 +13,32 @@ import { type KidOnboardingData } from './authStore'
 import { chaptersFor } from '@/data/syllabusCatalog'
 import { logActivity } from '@/store/activityLogStore'
 
+// ── Assigned library sheets ───────────────────────────────────────────────────
+// A parent assigns a PDF from the Worksheet Library to the kid; it shows in
+// "Assigned to me" with dates, and marks are captured after solving on paper
+// (the answer key is inside the sheet).
+export interface AssignedSheet {
+  id: string
+  title: string
+  file: string
+  url: string
+  subjectName: string
+  classNum: string
+  assignedDate: string          // ISO date
+  dueDate: string               // ISO date
+  status: 'assigned' | 'completed'
+  score?: number
+  maxScore?: number
+  completedDate?: string
+}
+
 // ── Per-kid data shape ────────────────────────────────────────────────────────
 export interface KidData {
   subjects:       SyllabusSubject[]
   olympiads:      OlympiadExam[]
   weeklySchedule: DaySchedule[]
   worksheets:     Worksheet[]
+  assignedSheets?: AssignedSheet[]   // optional: older persisted data lacks it
   logs:           LogEntry[]
   badges:         string[]
   xpTotal:        number
@@ -30,6 +50,7 @@ export const EMPTY_KID_DATA: KidData = {
   olympiads:      [],
   weeklySchedule: [],
   worksheets:     [],
+  assignedSheets: [],
   logs:           [],
   badges:         [],
   xpTotal:        0,
@@ -177,6 +198,11 @@ interface KidsDataState {
   ensureChapters:           (kidId: string, grade: string) => void
   addChapter:               (kidId: string, subjectId: string, name: string) => void
   removeChapter:            (kidId: string, subjectId: string, chapterId: string) => void
+  /** Parent assigns a library PDF to this kid ("Assigned to me" tab). */
+  assignSheet:              (kidId: string, sheet: Omit<AssignedSheet, 'id' | 'assignedDate' | 'status'>) => void
+  unassignSheet:            (kidId: string, assignmentId: string) => void
+  /** Capture marks after solving on paper — completes the sheet, awards XP. */
+  completeSheet:            (kidId: string, assignmentId: string, score: number, maxScore: number) => void
   addLog:                   (kidId: string, subject: string, activity: string, durationMinutes: number, mood: Mood) => void
   toggleTopicComplete:      (kidId: string, subjectId: string, chapterId: string, topicId: string) => void
   updateChapterStatus:      (kidId: string, subjectId: string, chapterId: string, status: SyllabusChapter['status']) => void
@@ -435,6 +461,69 @@ export const useKidsDataStore = create<KidsDataState>()(
             },
           }
         })
+      },
+
+      assignSheet(kidId, sheet) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          const existing = kid.assignedSheets ?? []
+          if (existing.some(a => a.file === sheet.file && a.status === 'assigned')) return s
+          const assignment: AssignedSheet = {
+            ...sheet,
+            id: `as-${Date.now().toString(36)}`,
+            assignedDate: new Date().toISOString().split('T')[0],
+            status: 'assigned',
+          }
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: { ...kid, assignedSheets: [assignment, ...existing] },
+            },
+          }
+        })
+        logActivity('worksheet_assigned', kidId, `Assigned: ${sheet.title} (due ${sheet.dueDate})`, kidId)
+      },
+
+      unassignSheet(kidId, assignmentId) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: { ...kid, assignedSheets: (kid.assignedSheets ?? []).filter(a => a.id !== assignmentId) },
+            },
+          }
+        })
+      },
+
+      completeSheet(kidId, assignmentId, score, maxScore) {
+        set(s => {
+          const kid = s.kidsData[kidId]
+          if (!kid) return s
+          const sheets = (kid.assignedSheets ?? []).map(a =>
+            a.id !== assignmentId ? a : {
+              ...a,
+              status: 'completed' as const,
+              score, maxScore,
+              completedDate: new Date().toISOString().split('T')[0],
+            }
+          )
+          const newXP = kid.xpTotal + 15
+          return {
+            kidsData: {
+              ...s.kidsData,
+              [kidId]: {
+                ...kid,
+                assignedSheets: sheets,
+                xpTotal: newXP,
+                badges: awardBadges(newXP, kid.streakDays, kid.badges),
+              },
+            },
+          }
+        })
+        logActivity('worksheet_submitted', kidId, `Sheet marked: ${score}/${maxScore}`, kidId)
       },
 
       submitWorksheet(kidId, worksheetId, score) {

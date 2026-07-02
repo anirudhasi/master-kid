@@ -8,8 +8,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileText, Download, ExternalLink, FolderOpen, Trophy } from 'lucide-react'
+import { FileText, Download, ExternalLink, FolderOpen, Trophy, Wallet, UserPlus, CheckCircle2 } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
+import { useKidStore } from '@/hooks/useKidStore'
+import { useWalletStore, WORKSHEET_COST } from '@/store/walletStore'
+import { logActivity } from '@/store/activityLogStore'
 
 type Manifest = Record<string, Record<string, string[]>>  // class → subjectSlug → files
 
@@ -54,13 +57,41 @@ function describePdf(file: string) {
 }
 
 export default function Resources() {
-  const { activeKidId, kids } = useAuthStore()
+  const { activeKidId, kids, activePhone } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)
   const kidClass = String(parseInt((activeKid?.grade ?? '').replace(/\D/g, '')) || 4)
+  const { assignedSheets, assignSheet } = useKidStore()
+  const wallet = useWalletStore()
+  const balance = useWalletStore(s => s.wallets[activePhone]?.balance ?? 100)
 
   const [manifest, setManifest] = useState<Manifest | null>(null)
   const [selectedClass, setSelectedClass] = useState(CLASSES.includes(kidClass) ? kidClass : '4')
   const [selectedSubject, setSelectedSubject] = useState('maths')
+  const [walletMsg, setWalletMsg] = useState('')
+
+  useEffect(() => { if (activePhone) wallet.ensureWallet(activePhone) }, [activePhone])
+
+  // ₹1 (1 credit) per worksheet, charged once — owned sheets re-open free.
+  const openSheet = (url: string, title: string) => {
+    const res = wallet.buyWorksheet(activePhone, url, title)
+    if (!res.ok) {
+      setWalletMsg('Not enough credits — your wallet is empty. Top-up is coming soon.')
+      return
+    }
+    setWalletMsg('')
+    if (res.charged) logActivity('worksheet_downloaded', activePhone, `Downloaded: ${title} (−₹${WORKSHEET_COST})`, activeKidId ?? undefined)
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  const assignToKid = (file: string, url: string, title: string, subjectName: string) => {
+    const due = new Date(); due.setDate(due.getDate() + 7)
+    assignSheet({
+      title, file, url, subjectName, classNum: selectedClass,
+      dueDate: due.toISOString().split('T')[0],
+    })
+  }
+
+  const isAssigned = (url: string) => assignedSheets.some(a => a.url === url)
 
   useEffect(() => {
     fetch('/worksheets/manifest.json')
@@ -89,16 +120,32 @@ export default function Resources() {
     <div className="page-container" style={{ maxWidth: 960 }}>
 
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 20 }}>
-        <p className="label" style={{ marginBottom: 4 }}>Worksheet Library</p>
-        <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.04em', color: '#0F172A' }}>
-          Printable Worksheets
-        </h1>
-        <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
-          Olympiad-grade practice sets, class by class, subject by subject.
-          {activeKid && ` Showing Class ${selectedClass}${selectedClass === kidClass ? ` — ${activeKid.name}'s class` : ''}.`}
-        </p>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <p className="label" style={{ marginBottom: 4 }}>Worksheet Library</p>
+          <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.04em', color: '#0F172A' }}>
+            Printable Worksheets
+          </h1>
+          <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
+            Olympiad-grade practice sets, class by class, subject by subject. ₹{WORKSHEET_COST} per sheet — once opened, it's yours forever.
+            {activeKid && ` Showing Class ${selectedClass}${selectedClass === kidClass ? ` — ${activeKid.name}'s class` : ''}.`}
+          </p>
+        </div>
+        {/* Wallet */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 12, background: 'linear-gradient(135deg,#0F172A,#312E81)', color: '#fff', flexShrink: 0 }}>
+          <Wallet size={16} color="#A5B4FC" />
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, lineHeight: 1 }}>₹{balance}</div>
+            <div style={{ fontSize: 9.5, color: '#A5B4FC', fontWeight: 700, letterSpacing: '0.05em' }}>WALLET CREDITS</div>
+          </div>
+        </div>
       </motion.div>
+
+      {walletMsg && (
+        <div style={{ padding: '10px 14px', borderRadius: 10, background: '#FFF1F2', border: '1px solid #FECDD3', color: '#BE123C', fontSize: 12.5, fontWeight: 700, marginBottom: 14 }}>
+          {walletMsg}
+        </div>
+      )}
 
       {/* Class selector */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
@@ -166,40 +213,69 @@ export default function Resources() {
             </span>
             <span style={{ fontSize: 11.5, color: '#94A3B8' }}>({totalForClass} total in this class)</span>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 10 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 10 }}>
             {files.map(({ file, url }) => {
               const d = describePdf(file)
+              const owned = wallet.ownsWorksheet(activePhone, url)
+              const assigned = isAssigned(url)
               return (
-                <motion.a key={file} href={url} target="_blank" rel="noopener noreferrer"
+                <motion.div key={file}
                   initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   whileHover={{ y: -2 }}
                   className="card"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '13px 15px',
-                    textDecoration: 'none', borderLeft: `3px solid ${subjectMeta.color}`,
-                  }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: 10, background: subjectMeta.color + '15',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <FileText size={17} color={subjectMeta.color} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
-                      {d.title}
-                      {d.sample && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#FEF3C7', color: '#B45309' }}>SAMPLE</span>}
+                  style={{ padding: '13px 15px', borderLeft: `3px solid ${subjectMeta.color}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: 10, background: subjectMeta.color + '15',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}>
+                      <FileText size={17} color={subjectMeta.color} />
                     </div>
-                    <div style={{ fontSize: 10.5, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
+                        {d.title}
+                        {d.sample && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#FEF3C7', color: '#B45309' }}>SAMPLE</span>}
+                        {owned && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#DCFCE7', color: '#15803D' }}>OWNED</span>}
+                      </div>
+                      <div style={{ fontSize: 10.5, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file}</div>
+                    </div>
                   </div>
-                  <span style={{ display: 'flex', gap: 8, flexShrink: 0, color: subjectMeta.color }}>
-                    <ExternalLink size={14} />
-                  </span>
-                </motion.a>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => openSheet(url, d.title)}
+                      style={{
+                        flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                        padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                        background: subjectMeta.color, color: '#fff', fontSize: 11.5, fontWeight: 800,
+                      }}>
+                      <ExternalLink size={12} /> {owned ? 'Open / Print' : `Open · ₹${WORKSHEET_COST}`}
+                    </button>
+                    {activeKid && (
+                      assigned ? (
+                        <span style={{
+                          flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                          padding: '7px 10px', borderRadius: 8, fontSize: 11.5, fontWeight: 800,
+                          background: '#DCFCE7', color: '#15803D',
+                        }}>
+                          <CheckCircle2 size={12} /> Assigned
+                        </span>
+                      ) : (
+                        <button onClick={() => assignToKid(file, url, d.title, subjectMeta.name)}
+                          style={{
+                            flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                            padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11.5, fontWeight: 800,
+                            border: `1.5px solid ${subjectMeta.color}50`, background: '#fff', color: subjectMeta.color,
+                          }}>
+                          <UserPlus size={12} /> Assign to {activeKid.name.split(' ')[0]}
+                        </button>
+                      )
+                    )}
+                  </div>
+                </motion.div>
               )
             })}
           </div>
           <div style={{ marginTop: 14, fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Download size={13} /> Open a worksheet, then print or save it — solve on paper, olympiad style.
+            <Download size={13} /> Open costs ₹{WORKSHEET_COST} once, then it's yours. Assign puts it in "Assigned to me" with a 7-day due date — record the marks there after solving.
           </div>
         </>
       ) : (
