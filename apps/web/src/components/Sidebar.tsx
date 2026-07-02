@@ -1,12 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import Logo, { LogoIcon } from '@/components/Logo'
 import { useAppStore, getLevel } from '@/store/appStore'
 import { useAuthStore } from '@/store/authStore'
 import { subjectPct } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
 import {
   LayoutDashboard, User, BookOpen, CalendarDays, FileText,
-  Bot, Trophy, Images, Drama, Award,
+  Bot, Images, Drama, Award,
   Users, Rss, GraduationCap, Search, Tag,
   Menu, X, ChevronRight, LogOut, Shield,
   Newspaper, Smile, Bell,
@@ -21,9 +22,8 @@ const CHILD_NAV: NavSection[] = [
     items: [
       { icon: LayoutDashboard, label: 'Dashboard',          href: '/child'      },
       { icon: Images,          label: 'Storyboard',         href: '/storyboard' },
-      { icon: BookOpen,        label: 'Academics',          href: '/academic'   },
+      { icon: GraduationCap,   label: 'Academics & Syllabus', href: '/syllabus' },
       { icon: User,            label: 'Profile',            href: '/profile'    },
-      { icon: GraduationCap,   label: 'Syllabus & Progress', href: '/syllabus' },
       { icon: CalendarDays,    label: 'My Planner',          href: '/plan'      },
       { icon: Drama,           label: 'Extra-curricular',    href: '/activities' },
     ],
@@ -31,9 +31,8 @@ const CHILD_NAV: NavSection[] = [
   {
     label: 'PRACTICE',
     items: [
-      { icon: FileText, label: 'Worksheets',        href: '/worksheets' },
-      { icon: Trophy,   label: 'Olympiad Practice', href: '/olympiad'   },
-      { icon: Award,    label: 'Olympiad Exams',    href: '/olympiads'  },
+      { icon: FileText, label: 'Worksheets & Olympiad', href: '/worksheets' },
+      { icon: Award,    label: 'Olympiad Exams',        href: '/olympiads'  },
     ],
   },
   {
@@ -81,11 +80,11 @@ const PARENT_NAV: NavSection[] = [
 ]
 
 const CHILD_TABS = [
-  { icon: LayoutDashboard, label: 'Home',     href: '/child'     },
-  { icon: BookOpen,        label: 'Syllabus', href: '/syllabus'  },
-  { icon: Trophy,          label: 'Olympiad', href: '/olympiad'  },
-  { icon: Smile,           label: 'Fun',      href: '/fun'       },
-  { icon: User,            label: 'Profile',  href: '/profile'   },
+  { icon: LayoutDashboard, label: 'Home',     href: '/child'      },
+  { icon: BookOpen,        label: 'Syllabus', href: '/syllabus'   },
+  { icon: FileText,        label: 'Practice', href: '/worksheets' },
+  { icon: Smile,           label: 'Fun',      href: '/fun'        },
+  { icon: User,            label: 'Profile',  href: '/profile'    },
 ]
 
 const PARENT_TABS = [
@@ -295,15 +294,11 @@ export default function Sidebar() {
         {/* Logo */}
         <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}>
-            <div style={{
-              width: 30, height: 30, borderRadius: 8,
-              background: 'linear-gradient(135deg,#4F46E5,#7C3AED)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, color: '#fff', fontWeight: 800,
-              boxShadow: '0 2px 8px rgba(99,102,241,0.4)',
-            }}>M</div>
+            <LogoIcon size={30} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.02em', lineHeight: 1 }}>Master-Kids</div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1 }}>
+                <span style={{ color: '#F1F5F9' }}>MASTER</span><span style={{ color: '#159A93' }}>KIDS</span>
+              </div>
               <div style={{ fontSize: 8, color: '#475569', letterSpacing: '0.06em', fontWeight: 600, marginTop: 2 }}>CRADLE TO CAREER</div>
             </div>
           </Link>
@@ -379,7 +374,7 @@ export default function Sidebar() {
           <div style={{ flex: 1, background: 'rgba(15,23,42,0.5)' }} onClick={() => setMobileOpen(false)} />
           <div style={{ width: 240, background: '#1E293B', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-              <span style={{ fontSize: 14, fontWeight: 800, color: '#F1F5F9' }}>Master-Kids</span>
+              <Logo size={24} dark />
               <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
                 <X size={18} />
               </button>
@@ -399,7 +394,7 @@ export default function Sidebar() {
         <button onClick={() => setMobileOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8' }}>
           <Menu size={20} />
         </button>
-        <span style={{ fontSize: 14, fontWeight: 800, color: '#F1F5F9' }}>Master-Kids</span>
+        <Logo size={24} dark />
         <div style={{ fontSize: 20 }}>{activeKid?.avatar ?? adminAvatar}</div>
       </div>
 

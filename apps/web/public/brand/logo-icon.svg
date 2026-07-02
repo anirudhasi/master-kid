@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96">
+  <!-- Master-Kids brand mark — graduation cap over an open book.
+       Recreated as vector from the official worksheet header (single source
+       of truth for the logo). Palette: navy #10243F, blue #1F5FA8,
+       teal #159A93, page-light #EAF1F8, tassel gold #F2A93B. -->
+  <!-- open book -->
+  <path d="M10 60 L46 52 L46 86 L10 79 Z" fill="#1F5FA8"/>
+  <path d="M86 60 L50 52 L50 86 L86 79 Z" fill="#159A93"/>
+  <path d="M16 62.5 L40 57.5" stroke="#EAF1F8" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+  <path d="M16 69.5 L40 64.5" stroke="#EAF1F8" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+  <path d="M56 57.5 L80 62.5" stroke="#EAF1F8" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+  <path d="M56 64.5 L80 69.5" stroke="#EAF1F8" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+  <!-- mortarboard -->
+  <path d="M48 6 L92 24 L48 42 L4 24 Z" fill="#10243F"/>
+  <path d="M27 32.5 L27 43 Q27 49.5 48 49.5 Q69 49.5 69 43 L69 32.5 L48 41 Z" fill="#10243F"/>
+  <line x1="78" y1="27.5" x2="78" y2="45" stroke="#F2A93B" stroke-width="3.2" stroke-linecap="round"/>
+  <circle cx="78" cy="48.5" r="4.2" fill="#F2A93B"/>
+</svg>

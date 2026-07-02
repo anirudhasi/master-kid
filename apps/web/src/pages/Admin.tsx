@@ -287,6 +287,8 @@ const EVENT_STYLE: Record<string, { label: string; bg: string; color: string }> 
   kid_removed:         { label: 'Child removed', bg: '#FFF1F2', color: '#BE123C' },
   kid_onboarded:       { label: 'Onboarded',   bg: '#ECFDF5', color: '#047857' },
   worksheet_submitted: { label: 'Worksheet',   bg: '#FFFBEB', color: '#B45309' },
+  worksheet_assigned:  { label: 'Assigned',    bg: '#EEF2FF', color: '#4338CA' },
+  worksheet_downloaded:{ label: 'Download',    bg: '#F0FDF4', color: '#15803D' },
   chapter_added:       { label: 'Chapter +',   bg: '#ECFEFF', color: '#0E7490' },
   chapter_removed:     { label: 'Chapter −',   bg: '#FFF7ED', color: '#C2410C' },
   log_added:           { label: 'Study log',   bg: '#ECFEFF', color: '#0E7490' },

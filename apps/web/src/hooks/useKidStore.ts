@@ -1,5 +1,5 @@
 import { useAuthStore } from '@/store/authStore'
-import { useKidsDataStore, EMPTY_KID_DATA } from '@/store/kidsDataStore'
+import { useKidsDataStore, EMPTY_KID_DATA, type AssignedSheet } from '@/store/kidsDataStore'
 import type { SyllabusChapter, Mood, OlympiadExam } from '@/store/appStore'
 
 export function useKidStore() {
@@ -9,6 +9,7 @@ export function useKidStore() {
     toggleTopicComplete, updateChapterStatus,
     updateSubjectTextbook, toggleChapterInSchool,
     ensureOlympiads, ensureChapters, addChapter, removeChapter,
+    assignSheet, unassignSheet, completeSheet,
     toggleOlympiadRegistration, overrideScheduleTopic,
     submitWorksheet, addLog,
   } = useKidsDataStore()
@@ -22,6 +23,7 @@ export function useKidStore() {
     olympiads:      data.olympiads,
     weeklySchedule: data.weeklySchedule,
     worksheets:     data.worksheets,
+    assignedSheets: data.assignedSheets ?? [],
     logs:           data.logs,
     badges:         data.badges,
     xpTotal:        data.xpTotal,
@@ -51,6 +53,15 @@ export function useKidStore() {
 
     removeChapter: (subjectId: string, chapterId: string) =>
       removeChapter(kidId, subjectId, chapterId),
+
+    assignSheet: (sheet: Omit<AssignedSheet, 'id' | 'assignedDate' | 'status'>) =>
+      assignSheet(kidId, sheet),
+
+    unassignSheet: (assignmentId: string) =>
+      unassignSheet(kidId, assignmentId),
+
+    completeSheet: (assignmentId: string, score: number, maxScore: number) =>
+      completeSheet(kidId, assignmentId, score, maxScore),
 
     toggleOlympiadRegistration: (olympiadId: string) =>
       toggleOlympiadRegistration(kidId, olympiadId),

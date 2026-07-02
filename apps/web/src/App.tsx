@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import RequireAuth from '@/components/RequireAuth'
@@ -22,14 +22,13 @@ import Blog from '@/pages/Blog'
 import Knowledge from '@/pages/Knowledge'
 import Daily from '@/pages/Daily'
 import Storyboard from '@/pages/Storyboard'
-import Academic from '@/pages/Academic'
-import Olympiad from '@/pages/Olympiad'
 import ExtraCurricular from '@/pages/ExtraCurricular'
 import Coach from '@/pages/Coach'
 import Admin from '@/pages/Admin'
 import Subscription from '@/pages/Subscription'
 import NotFound from '@/pages/NotFound'
 import { useAuthStore } from '@/store/authStore'
+import { useKidsDataStore } from '@/store/kidsDataStore'
 import { useSubscriptionStore, isSubscriptionActive } from '@/store/subscriptionStore'
 
 // Routes that only make sense with a child selected. Without one, we bounce to
@@ -43,6 +42,17 @@ function AppShell() {
   const loc = useLocation()
   const { activeKidId, kids, isAdmin } = useAuthStore()
   const sub = useSubscriptionStore(s => (activeKidId ? s.subs[activeKidId] : undefined))
+  const { kidsData, initKidData } = useKidsDataStore()
+
+  // A kid synced from another device arrives with onboarding answers in the
+  // profile but no local per-kid data — rebuild subjects/chapters from it so
+  // Syllabus/Worksheets aren't empty on this device.
+  useEffect(() => {
+    const kid = kids.find(k => k.id === activeKidId)
+    if (kid?.isOnboarded && kid.onboarding && !kidsData[kid.id]) {
+      initKidData(kid.id, kid.onboarding, kid.grade)
+    }
+  }, [activeKidId, kids, kidsData, initKidData])
 
   // Guard: the Admin Console is for the platform admin only.
   if (loc.pathname === '/admin' && !isAdmin) {
@@ -74,8 +84,9 @@ function AppShell() {
         <Routes>
           <Route path="/child"      element={<ChildDashboard />} />
           <Route path="/storyboard" element={<Storyboard />} />
-          <Route path="/academic"   element={<Academic />} />
-          <Route path="/olympiad"    element={<Olympiad />} />
+          {/* Merged: Academics lives inside Syllabus; Olympiad Practice inside Worksheets */}
+          <Route path="/academic"   element={<Navigate to="/syllabus" replace />} />
+          <Route path="/olympiad"   element={<Navigate to="/worksheets" replace />} />
           <Route path="/activities"  element={<ExtraCurricular />} />
           <Route path="/parent"     element={<ParentDashboard />} />
           <Route path="/tutor"      element={<TutorPortal />} />
