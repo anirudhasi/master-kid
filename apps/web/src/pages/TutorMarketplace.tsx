@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { Star, MapPin, Users, Briefcase, Award } from 'lucide-react'
+import { Star, Users, Briefcase, Award } from 'lucide-react'
 
 export default function TutorMarketplace() {
   const tutors = [

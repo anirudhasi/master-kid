@@ -180,7 +180,7 @@ export default function Blog() {
   const [selectedCat, setSelectedCat] = useState<string>('all')
   const [search, setSearch] = useState('')
   const [openArticle, setOpenArticle] = useState<BlogArticle | null>(null)
-  const [view, setView] = useState<'grid'|'list'>('grid')
+  const [_view, _setView] = useState<'grid'|'list'>('grid')
 
   const featured = useMemo(() => BLOG_ARTICLES.filter(a => a.featured).slice(0,3), [])
   const filtered = useMemo(() => {

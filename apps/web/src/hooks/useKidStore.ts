@@ -8,7 +8,7 @@ export function useKidStore() {
     kidsData,
     toggleTopicComplete, updateChapterStatus,
     updateSubjectTextbook, toggleChapterInSchool,
-    ensureOlympiads,
+    ensureOlympiads, ensureChapters, addChapter, removeChapter,
     toggleOlympiadRegistration, overrideScheduleTopic,
     submitWorksheet, addLog,
   } = useKidsDataStore()
@@ -42,6 +42,15 @@ export function useKidStore() {
 
     ensureOlympiads: (defaults: OlympiadExam[]) =>
       ensureOlympiads(kidId, defaults),
+
+    ensureChapters: (grade: string) =>
+      ensureChapters(kidId, grade),
+
+    addChapter: (subjectId: string, name: string) =>
+      addChapter(kidId, subjectId, name),
+
+    removeChapter: (subjectId: string, chapterId: string) =>
+      removeChapter(kidId, subjectId, chapterId),
 
     toggleOlympiadRegistration: (olympiadId: string) =>
       toggleOlympiadRegistration(kidId, olympiadId),

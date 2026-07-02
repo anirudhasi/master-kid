@@ -17,6 +17,7 @@ import { useSocialStore } from '@/store/socialStore'
 import { useActivityStore } from '@/store/activityStore'
 import { useCoachStore } from '@/store/coachStore'
 import { useAdminStore, MODULES, moduleEnabled } from '@/store/adminStore'
+import { useActivityLogStore, type ActivityEvent } from '@/store/activityLogStore'
 
 const P = '#6C63FF'
 const FONT = "'Nunito', 'Inter', sans-serif"
@@ -167,6 +168,10 @@ export default function Admin() {
       <h2 style={sectionH}>User management</h2>
       <UserManagement accounts={data.accountsArr} children={data.children} coaches={data.coachesArr} courses={data.courseArr} />
 
+      {/* Platform activity monitor */}
+      <h2 style={sectionH}><ActivityIcon size={16} style={{ verticalAlign: -3, marginRight: 6 }} />Activity monitor</h2>
+      <ActivityMonitor />
+
       {/* Audit */}
       <h2 style={sectionH}><History size={16} style={{ verticalAlign: -3, marginRight: 6 }} />Recent admin actions</h2>
       {admin.audit.length === 0 ? <div style={{ fontSize: 13, color: '#94A3B8' }}>No actions yet.</div> : (
@@ -267,6 +272,80 @@ function UserManagement({ accounts, children, coaches, courses }: { accounts: an
 
       {((tab === 'parents' && accounts.length === 0) || (tab === 'children' && children.length === 0) || (tab === 'coaches' && coaches.length === 0)) && (
         <div style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', padding: 24 }}>No {tab} yet.</div>
+      )}
+    </div>
+  )
+}
+
+// ── Activity monitor — every user action, most recent first ─────────────────
+const EVENT_STYLE: Record<string, { label: string; bg: string; color: string }> = {
+  login:               { label: 'Login',       bg: '#EFF6FF', color: '#1D4ED8' },
+  logout:              { label: 'Logout',      bg: '#F1F5F9', color: '#64748B' },
+  signup:              { label: 'Sign-up',     bg: '#ECFDF5', color: '#047857' },
+  kid_added:           { label: 'Child added', bg: '#F5F3FF', color: '#6D28D9' },
+  kid_updated:         { label: 'Child edit',  bg: '#F5F3FF', color: '#6D28D9' },
+  kid_removed:         { label: 'Child removed', bg: '#FFF1F2', color: '#BE123C' },
+  kid_onboarded:       { label: 'Onboarded',   bg: '#ECFDF5', color: '#047857' },
+  worksheet_submitted: { label: 'Worksheet',   bg: '#FFFBEB', color: '#B45309' },
+  chapter_added:       { label: 'Chapter +',   bg: '#ECFEFF', color: '#0E7490' },
+  chapter_removed:     { label: 'Chapter −',   bg: '#FFF7ED', color: '#C2410C' },
+  log_added:           { label: 'Study log',   bg: '#ECFEFF', color: '#0E7490' },
+  subscription_started:{ label: 'Subscription', bg: '#FDF2F8', color: '#BE185D' },
+  admin_action:        { label: 'Admin',       bg: '#0F172A', color: '#E2E8F0' },
+}
+
+const maskActor = (a: string) => {
+  if (!a) return '—'
+  if (a.includes('@')) {
+    const [user, domain] = a.split('@')
+    return `${user.slice(0, 2)}•••@${domain}`
+  }
+  return a.length >= 4 ? `${a.slice(0, 2)}••••${a.slice(-2)}` : '••••'
+}
+
+function ActivityMonitor() {
+  const entries = useActivityLogStore(s => s.entries)
+  const [filter, setFilter] = useState<'all' | ActivityEvent>('all')
+  const shown = (filter === 'all' ? entries : entries.filter(e => e.event === filter)).slice(0, 30)
+  const presentEvents = [...new Set(entries.map(e => e.event))]
+
+  return (
+    <div style={{ background: '#fff', borderRadius: 16, border: '1px solid #EEF0F5', padding: 16, marginBottom: 26 }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <button onClick={() => setFilter('all')}
+          style={{ padding: '4px 12px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, fontFamily: FONT, background: filter === 'all' ? '#0F172A' : '#F1F5F9', color: filter === 'all' ? '#fff' : '#64748B' }}>
+          All ({entries.length})
+        </button>
+        {presentEvents.map(ev => {
+          const st = EVENT_STYLE[ev] ?? { label: ev, bg: '#F1F5F9', color: '#64748B' }
+          return (
+            <button key={ev} onClick={() => setFilter(ev)}
+              style={{ padding: '4px 12px', borderRadius: 16, border: 'none', cursor: 'pointer', fontSize: 11.5, fontWeight: 800, fontFamily: FONT, background: filter === ev ? st.color : st.bg, color: filter === ev ? '#fff' : st.color }}>
+              {st.label}
+            </button>
+          )
+        })}
+      </div>
+      {shown.length === 0 ? (
+        <div style={{ fontSize: 13, color: '#94A3B8', textAlign: 'center', padding: 20 }}>
+          No activity recorded yet. Logins, child profile changes, onboarding and worksheet submissions will appear here.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 5, maxHeight: 360, overflowY: 'auto' }}>
+          {shown.map(e => {
+            const st = EVENT_STYLE[e.event] ?? { label: e.event, bg: '#F1F5F9', color: '#64748B' }
+            return (
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: '#475569', padding: '7px 10px', background: '#FAFBFF', borderRadius: 8, border: '1px solid #F1F5F9' }}>
+                <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 9px', borderRadius: 8, background: st.bg, color: st.color, flexShrink: 0, minWidth: 74, textAlign: 'center' }}>{st.label}</span>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.detail}</span>
+                <span title="Masked for privacy" style={{ color: '#94A3B8', fontSize: 11.5, flexShrink: 0 }}>{maskActor(e.actor)}</span>
+                <span style={{ color: '#CBD5E1', fontSize: 11, flexShrink: 0 }}>
+                  {new Date(e.at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )

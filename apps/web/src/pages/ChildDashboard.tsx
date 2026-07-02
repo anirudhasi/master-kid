@@ -259,7 +259,7 @@ export default function ChildDashboard() {
                         <div style={{ fontSize: 9.5, color: '#94A3B8', marginTop: 2 }}>{sub.done}/{sub.total} topics</div>
                       )}
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); !loggedSet.has(sub.name) && handleTap(sub.name) }} title="Log a study session"
+                    <button onClick={(e) => { e.stopPropagation(); if (!loggedSet.has(sub.name)) handleTap(sub.name) }} title="Log a study session"
                       style={{ flexShrink: 0, width: 28, height: 28, borderRadius: 8, border: 'none', cursor: 'pointer', background: loggedSet.has(sub.name) ? '#DCFCE7' : '#EEF2FF', color: loggedSet.has(sub.name) ? '#166534' : '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
                       {loggedSet.has(sub.name) ? '✓' : '+'}
                     </button>

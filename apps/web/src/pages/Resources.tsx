@@ -1,402 +1,233 @@
-import { motion, AnimatePresence } from 'framer-motion'
-import { useState, useMemo } from 'react'
-import { Search, Filter, Download, BookOpen, Clock, ChevronRight, X, CheckCircle, ArrowLeft, Send, Printer } from 'lucide-react'
-import {
-  WORKSHEETS, SUBJECTS_BY_GRADE, SUBJECT_ICONS, COMPLEXITY_COLORS,
-  type Worksheet, type WorksheetSubject, type WorksheetComplexity,
-} from '@/data/worksheetsData'
+// Worksheet Library — driven by the real PDF library at repo-root
+// `master-kids_Worksheets/` (copied to /worksheets + manifest.json at build).
+//
+// Class 4 · Maths ships today (olympiad-grade sets). Every other class/subject
+// renders an upload placeholder: drop PDFs into
+//   master-kids_Worksheets/Class <N>/<Subject>/*.pdf
+// rebuild, and they appear here automatically — no code changes needed.
+
+import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
+import { FileText, Download, ExternalLink, FolderOpen, Trophy } from 'lucide-react'
 import { useAuthStore } from '@/store/authStore'
 
-const GRADES = [1,2,3,4,5,6,7,8]
+type Manifest = Record<string, Record<string, string[]>>  // class → subjectSlug → files
 
-function WorksheetCard({ ws, onClick }: { ws: Worksheet; onClick: () => void }) {
-  const cc = COMPLEXITY_COLORS[ws.complexity]
-  return (
-    <motion.div
-      initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }}
-      whileHover={{ y:-2 }}
-      onClick={onClick}
-      className="card"
-      style={{ padding:20, cursor:'pointer', borderLeft:`3px solid ${cc.color}`, transition:'box-shadow 0.2s' }}
-    >
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:20 }}>{SUBJECT_ICONS[ws.subject]}</span>
-          <div>
-            <div style={{ fontSize:13, fontWeight:800, color:'#0F172A', lineHeight:1.3 }}>{ws.title}</div>
-            <div style={{ fontSize:11, color:'#64748B', marginTop:2 }}>{ws.topic}</div>
-          </div>
-        </div>
-        <span style={{ fontSize:10, padding:'3px 8px', borderRadius:6, background:cc.bg, color:cc.color, fontWeight:700, flexShrink:0, marginLeft:8 }}>
-          {cc.label}
-        </span>
-      </div>
-      <p style={{ fontSize:12, color:'#64748B', lineHeight:1.5, marginBottom:12 }}>{ws.description}</p>
-      <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
-        <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'#94A3B8' }}>
-          <Clock size={11}/> {ws.estimatedMinutes} min
-        </span>
-        <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'#94A3B8' }}>
-          <BookOpen size={11}/> {ws.questionCount} questions
-        </span>
-        <span style={{ fontSize:11, padding:'2px 7px', borderRadius:5, background:'#EEF2FF', color:'#4F46E5', fontWeight:600 }}>
-          Grade {ws.grade}
-        </span>
-        {ws.tags.slice(0,2).map(t => (
-          <span key={t} style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:'#F1F5F9', color:'#64748B' }}>{t}</span>
-        ))}
-      </div>
-      <div style={{ display:'flex', justifyContent:'flex-end', marginTop:12 }}>
-        <span style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, color:'#4F46E5', fontWeight:600 }}>
-          Open Worksheet <ChevronRight size={13}/>
-        </span>
-      </div>
-    </motion.div>
-  )
+const CLASSES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+
+// Canonical subjects shown for every class (matches the upload folder names).
+const SUBJECTS: { slug: string; name: string; icon: string; color: string }[] = [
+  { slug: 'maths',    name: 'Maths',            icon: '📐', color: '#4F46E5' },
+  { slug: 'english',  name: 'English',          icon: '📖', color: '#059669' },
+  { slug: 'science',  name: 'Science / EVS',    icon: '🔬', color: '#0369A1' },
+  { slug: 'hindi',    name: 'Hindi',            icon: '🔤', color: '#DC2626' },
+  { slug: 'sst',      name: 'Social Studies',   icon: '🗺️', color: '#D97706' },
+  { slug: 'kannada',  name: 'Kannada',          icon: '✍️', color: '#B45309' },
+  { slug: 'computer', name: 'Computer',         icon: '💻', color: '#7C3AED' },
+  { slug: 'gk',       name: 'GK',               icon: '🌟', color: '#CA8A04' },
+]
+
+// Folder slugs that should collapse onto a canonical subject tile.
+const SLUG_ALIASES: Record<string, string> = {
+  maths: 'maths', math: 'maths', mathematics: 'maths',
+  english: 'english',
+  science: 'science', evs: 'science',
+  hindi: 'hindi',
+  sst: 'sst', 'social-studies': 'sst', 'social-science': 'sst',
+  kannada: 'kannada',
+  computer: 'computer', 'computer-science': 'computer',
+  gk: 'gk', 'general-knowledge': 'gk',
 }
 
-function WorksheetDetail({ ws, onClose }: { ws: Worksheet; onClose: () => void }) {
-  const cc = COMPLEXITY_COLORS[ws.complexity]
-  const [submitted, setSubmitted] = useState(false)
-  const [answers, setAnswers] = useState<string[]>(Array(ws.questionCount).fill(''))
-
-  // Generate sample questions based on topic
-  const sampleQuestions = useMemo(() => {
-    const templates = [
-      `Solve the following ${ws.topic} problem and show your working clearly.`,
-      `Explain in your own words what you understand about ${ws.topic}.`,
-      `Give 3 examples of ${ws.topic} from your daily life.`,
-      `Fill in the blanks based on what you know about ${ws.topic}.`,
-      `True or False? Write T or F and give a reason for each answer.`,
-      `Match the following items related to ${ws.topic}.`,
-      `Draw a diagram to illustrate the concept of ${ws.topic}.`,
-      `Write a short paragraph explaining ${ws.topic} as if teaching a younger student.`,
-      `Calculate and show your steps: a ${ws.topic} problem with two parts.`,
-      `Colour or shade the correct answers in the ${ws.topic} grid below.`,
-    ]
-    return templates.slice(0, Math.min(ws.questionCount, 10))
-  }, [ws])
-
-  return (
-    <motion.div initial={{ opacity:0, x:30 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:30 }}
-      style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.5)', zIndex:200, display:'flex', justifyContent:'flex-end' }}
-      onClick={onClose}>
-      <motion.div
-        initial={{ x:420 }} animate={{ x:0 }} exit={{ x:420 }}
-        style={{ width:'min(560px,100vw)', background:'#fff', height:'100%', overflowY:'auto', padding:0, display:'flex', flexDirection:'column' }}
-        onClick={e => e.stopPropagation()}>
-
-        {/* Header */}
-        <div style={{ background:'linear-gradient(135deg,#4F46E5,#7C3AED)', padding:'24px 24px 20px', flexShrink:0 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-            <button onClick={onClose} style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'6px 10px', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
-              <ArrowLeft size={13}/> Back
-            </button>
-            <div style={{ display:'flex', gap:6 }}>
-              <button style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'6px 10px', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', gap:5, fontSize:12 }}>
-                <Printer size={12}/> Print
-              </button>
-              <button style={{ background:'rgba(255,255,255,0.2)', border:'none', borderRadius:8, padding:'6px 10px', cursor:'pointer', color:'#fff', display:'flex', alignItems:'center', gap:5, fontSize:12 }}>
-                <Send size={12}/> Send via WhatsApp
-              </button>
-            </div>
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ width:48, height:48, borderRadius:12, background:'rgba(255,255,255,0.2)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:24 }}>
-              {SUBJECT_ICONS[ws.subject]}
-            </div>
-            <div>
-              <h2 style={{ fontSize:20, fontWeight:900, color:'#fff', marginBottom:4 }}>{ws.title}</h2>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                <span style={{ fontSize:11, padding:'2px 8px', borderRadius:5, background:'rgba(255,255,255,0.2)', color:'#fff' }}>Grade {ws.grade}</span>
-                <span style={{ fontSize:11, padding:'2px 8px', borderRadius:5, background:cc.bg, color:cc.color, fontWeight:700 }}>{cc.label}</span>
-                <span style={{ fontSize:11, padding:'2px 8px', borderRadius:5, background:'rgba(255,255,255,0.2)', color:'#fff' }}>{ws.estimatedMinutes} min</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding:24, flex:1 }}>
-          <div style={{ background:'#F8FAFC', borderRadius:12, padding:'14px 16px', marginBottom:20, border:'1px solid #E2E8F0' }}>
-            <p style={{ fontSize:13, color:'#374151', lineHeight:1.6 }}>{ws.description}</p>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginTop:10 }}>
-              {ws.tags.map(t => (
-                <span key={t} style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:'#EEF2FF', color:'#4F46E5' }}>{t}</span>
-              ))}
-            </div>
-          </div>
-
-          {submitted ? (
-            <motion.div initial={{ scale:0.9, opacity:0 }} animate={{ scale:1, opacity:1 }}
-              style={{ textAlign:'center', padding:'32px 16px' }}>
-              <div style={{ fontSize:48, marginBottom:12 }}>🎉</div>
-              <div style={{ fontSize:18, fontWeight:800, color:'#059669', marginBottom:8 }}>Worksheet Submitted!</div>
-              <div style={{ fontSize:13, color:'#64748B', marginBottom:20 }}>Great work! +10 XP has been added to your streak.</div>
-              <div style={{ background:'#ECFDF5', border:'1px solid #A7F3D0', borderRadius:12, padding:'14px 16px', marginBottom:16 }}>
-                <p style={{ fontSize:12, color:'#065F46', fontWeight:600 }}>AI Review in Progress</p>
-                <p style={{ fontSize:11, color:'#064E3B', marginTop:4 }}>Your answers have been sent for AI grading. Results will appear in the Parent Dashboard.</p>
-              </div>
-              <button onClick={() => { setSubmitted(false); setAnswers(Array(ws.questionCount).fill('')) }}
-                className="btn btn-secondary" style={{ fontSize:13 }}>
-                Try Another Worksheet
-              </button>
-            </motion.div>
-          ) : (
-            <>
-              <div style={{ marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
-                <BookOpen size={16} color="#4F46E5"/>
-                <span style={{ fontSize:14, fontWeight:700, color:'#0F172A' }}>Practice Questions</span>
-                <span style={{ fontSize:11, color:'#94A3B8' }}>({ws.questionCount} questions · {ws.estimatedMinutes} minutes)</span>
-              </div>
-
-              <div style={{ display:'flex', flexDirection:'column', gap:16, marginBottom:24 }}>
-                {sampleQuestions.map((q, i) => (
-                  <div key={i} style={{ background:'#FAFAFA', border:'1px solid #E2E8F0', borderRadius:10, padding:16 }}>
-                    <div style={{ display:'flex', gap:10, marginBottom:10 }}>
-                      <div style={{ width:24, height:24, borderRadius:6, background:'#4F46E5', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, flexShrink:0 }}>
-                        {i+1}
-                      </div>
-                      <p style={{ fontSize:13, color:'#374151', lineHeight:1.6, flex:1 }}>{q}</p>
-                    </div>
-                    {/* Whiteboard answer area */}
-                    <div style={{ background:'#fff', border:'1.5px solid #CBD5E1', borderRadius:8, padding:12, minHeight:80, position:'relative' }}>
-                      <textarea
-                        value={answers[i]}
-                        onChange={e => { const a = [...answers]; a[i] = e.target.value; setAnswers(a) }}
-                        placeholder="Write your answer here…"
-                        style={{ width:'100%', border:'none', outline:'none', resize:'none', fontSize:13, color:'#374151', background:'transparent', minHeight:64, fontFamily:'inherit', lineHeight:1.6 }}
-                        rows={3}
-                      />
-                      {answers[i] && (
-                        <CheckCircle size={14} color="#059669" style={{ position:'absolute', top:8, right:8 }}/>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Whiteboard drawing area */}
-              <div style={{ background:'#FAFAFA', border:'2px dashed #CBD5E1', borderRadius:12, padding:20, marginBottom:20, textAlign:'center' }}>
-                <div style={{ fontSize:24, marginBottom:8 }}>✏️</div>
-                <div style={{ fontSize:13, fontWeight:700, color:'#374151', marginBottom:4 }}>Diagram / Working Space</div>
-                <div style={{ fontSize:11, color:'#94A3B8' }}>Use the app's whiteboard tool or print and solve on paper.</div>
-                <button className="btn btn-secondary" style={{ marginTop:12, fontSize:12, padding:'8px 16px' }}>
-                  Open Whiteboard
-                </button>
-              </div>
-
-              <button
-                onClick={() => setSubmitted(true)}
-                className="btn btn-success"
-                style={{ width:'100%', padding:'14px 0', fontSize:14 }}>
-                ✅ Submit Worksheet · +10 XP
-              </button>
-            </>
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
-  )
+/** "MK-MATH-C4-L1-W01.pdf" → { title: 'Level 1 · Worksheet 1', sample: false } */
+function describePdf(file: string) {
+  const base = file.replace(/\.pdf$/i, '')
+  const level = base.match(/-L(\d+)-/i)?.[1]
+  const wsNum = base.match(/-W(\d+)/i)?.[1]
+  const mock = /MOCK/i.test(base)
+  const sample = /SAMPLE/i.test(base)
+  const parts: string[] = []
+  if (mock) parts.push('Mock Test')
+  else if (level) parts.push(`Level ${parseInt(level)}`)
+  if (wsNum) parts.push(`Worksheet ${parseInt(wsNum)}`)
+  return { title: parts.length ? parts.join(' · ') : base, sample }
 }
 
 export default function Resources() {
   const { activeKidId, kids } = useAuthStore()
   const activeKid = kids.find(k => k.id === activeKidId)
-  const defaultGrade = activeKid?.grade ? parseInt(activeKid.grade.replace(/\D/g,'')) || 4 : 4
+  const kidClass = String(parseInt((activeKid?.grade ?? '').replace(/\D/g, '')) || 4)
 
-  const [selectedGrade, setSelectedGrade] = useState(defaultGrade)
-  const [selectedSubject, setSelectedSubject] = useState<WorksheetSubject | null>(null)
-  const [selectedComplexity, setSelectedComplexity] = useState<WorksheetComplexity | null>(null)
-  const [search, setSearch] = useState('')
-  const [openWs, setOpenWs] = useState<Worksheet | null>(null)
-  const [showFilter, setShowFilter] = useState(false)
+  const [manifest, setManifest] = useState<Manifest | null>(null)
+  const [selectedClass, setSelectedClass] = useState(CLASSES.includes(kidClass) ? kidClass : '4')
+  const [selectedSubject, setSelectedSubject] = useState('maths')
 
-  const availableSubjects = SUBJECTS_BY_GRADE[selectedGrade] ?? []
+  useEffect(() => {
+    fetch('/worksheets/manifest.json')
+      .then(r => (r.ok ? r.json() : {}))
+      .then(setManifest)
+      .catch(() => setManifest({}))
+  }, [])
 
-  const filtered = useMemo(() => {
-    return WORKSHEETS.filter(w => {
-      if (w.grade !== selectedGrade) return false
-      if (selectedSubject && w.subject !== selectedSubject) return false
-      if (selectedComplexity && w.complexity !== selectedComplexity) return false
-      if (search && !w.title.toLowerCase().includes(search.toLowerCase()) &&
-          !w.topic.toLowerCase().includes(search.toLowerCase()) &&
-          !w.tags.some(t => t.toLowerCase().includes(search.toLowerCase()))) return false
-      return true
-    })
-  }, [selectedGrade, selectedSubject, selectedComplexity, search])
+  // Resolve the selected class's folders onto canonical subject slugs.
+  const classFiles = useMemo(() => {
+    const byClass = manifest?.[selectedClass] ?? {}
+    const out: Record<string, { file: string; url: string }[]> = {}
+    for (const [folderSlug, files] of Object.entries(byClass)) {
+      const canonical = SLUG_ALIASES[folderSlug] ?? folderSlug
+      out[canonical] ??= []
+      for (const f of files) out[canonical].push({ file: f, url: `/worksheets/class${selectedClass}/${folderSlug}/${f}` })
+    }
+    return out
+  }, [manifest, selectedClass])
 
-  const stats = useMemo(() => ({
-    total: WORKSHEETS.filter(w => w.grade === selectedGrade).length,
-    easy: WORKSHEETS.filter(w => w.grade === selectedGrade && w.complexity === 'easy').length,
-    medium: WORKSHEETS.filter(w => w.grade === selectedGrade && w.complexity === 'medium').length,
-    hard: WORKSHEETS.filter(w => w.grade === selectedGrade && w.complexity === 'hard').length,
-  }), [selectedGrade])
+  const files = classFiles[selectedSubject] ?? []
+  const subjectMeta = SUBJECTS.find(s => s.slug === selectedSubject) ?? SUBJECTS[0]
+  const totalForClass = Object.values(classFiles).reduce((a, f) => a + f.length, 0)
 
   return (
-    <div className="page-container" style={{ maxWidth:960 }}>
+    <div className="page-container" style={{ maxWidth: 960 }}>
 
       {/* Header */}
-      <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} style={{ marginBottom:24 }}>
-        <p className="label" style={{ marginBottom:4 }}>Learning Resources</p>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-          <div>
-            <h1 style={{ fontSize:28, fontWeight:900, letterSpacing:'-0.04em', color:'#0F172A' }}>
-              Worksheets & Practice
-            </h1>
-            <p style={{ fontSize:13, color:'#64748B', marginTop:4 }}>
-              {activeKid ? `Showing Grade ${selectedGrade} worksheets • Personalised for ${activeKid.name}` : 'Select a grade to browse worksheets'}
-            </p>
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setShowFilter(!showFilter)} className={`btn ${showFilter ? 'btn-primary' : 'btn-secondary'}`} style={{ fontSize:12, gap:5 }}>
-              <Filter size={13}/> Filter
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: 20 }}>
+        <p className="label" style={{ marginBottom: 4 }}>Worksheet Library</p>
+        <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.04em', color: '#0F172A' }}>
+          Printable Worksheets
+        </h1>
+        <p style={{ fontSize: 13, color: '#64748B', marginTop: 4 }}>
+          Olympiad-grade practice sets, class by class, subject by subject.
+          {activeKid && ` Showing Class ${selectedClass}${selectedClass === kidClass ? ` — ${activeKid.name}'s class` : ''}.`}
+        </p>
+      </motion.div>
+
+      {/* Class selector */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4, flexWrap: 'wrap' }}>
+        {CLASSES.map(c => {
+          const has = Object.keys(manifest?.[c] ?? {}).length > 0
+          return (
+            <button key={c} onClick={() => setSelectedClass(c)}
+              style={{
+                padding: '8px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+                fontWeight: 700, fontSize: 13, flexShrink: 0, position: 'relative',
+                background: selectedClass === c ? '#4F46E5' : '#F1F5F9',
+                color: selectedClass === c ? '#fff' : '#64748B',
+                boxShadow: selectedClass === c ? '0 2px 8px rgba(79,70,229,0.25)' : 'none',
+                transition: 'all 0.15s',
+              }}>
+              Class {c}
+              {c === kidClass && activeKid && <span style={{ marginLeft: 4, fontSize: 10 }}>⭐</span>}
+              {has && <span style={{
+                position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: '50%',
+                background: selectedClass === c ? '#A7F3D0' : '#22C55E',
+              }} />}
             </button>
-          </div>
-        </div>
-      </motion.div>
+          )
+        })}
+      </div>
 
-      {/* Grade Selector */}
-      <motion.div initial={{ opacity:0 }} animate={{ opacity:1, transition:{ delay:0.05 } }}
-        style={{ display:'flex', gap:8, marginBottom:20, overflowX:'auto', paddingBottom:4, flexWrap:'wrap' }}>
-        {GRADES.map(g => (
-          <button key={g} onClick={() => { setSelectedGrade(g); setSelectedSubject(null) }}
-            style={{
-              padding:'8px 16px', borderRadius:10, border:'none', cursor:'pointer', fontWeight:700, fontSize:13, flexShrink:0,
-              background: selectedGrade === g ? '#4F46E5' : '#F1F5F9',
-              color: selectedGrade === g ? '#fff' : '#64748B',
-              boxShadow: selectedGrade === g ? '0 2px 8px rgba(79,70,229,0.25)' : 'none',
-              transition: 'all 0.15s',
-            }}>
-            Grade {g}
-            {g === defaultGrade && activeKid && <span style={{ marginLeft:4, fontSize:10 }}>⭐</span>}
-          </button>
-        ))}
-      </motion.div>
-
-      {/* Stats row */}
-      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.08 }}
-        style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-        {[
-          { label:'Total', value:stats.total, color:'#4F46E5', bg:'#EEF2FF' },
-          { label:'Easy', value:stats.easy, color:'#059669', bg:'#ECFDF5' },
-          { label:'Medium', value:stats.medium, color:'#D97706', bg:'#FFFBEB' },
-          { label:'Hard', value:stats.hard, color:'#DC2626', bg:'#FEF2F2' },
-        ].map(s => (
-          <div key={s.label} className="card" style={{ padding:'14px 16px', textAlign:'center' }}>
-            <div style={{ fontSize:22, fontWeight:900, color:s.color }}>{s.value}</div>
-            <div style={{ fontSize:11, color:'#94A3B8', marginTop:2 }}>{s.label} worksheets</div>
-          </div>
-        ))}
-      </motion.div>
-
-      {/* Subject Tiles */}
-      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.1 }} style={{ marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-          <span style={{ fontSize:13, fontWeight:700, color:'#374151' }}>Filter by Subject</span>
-          {selectedSubject && (
-            <button onClick={() => setSelectedSubject(null)}
-              style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'#64748B', background:'#F1F5F9', border:'none', borderRadius:5, padding:'3px 8px', cursor:'pointer' }}>
-              <X size={10}/> Clear
-            </button>
-          )}
-        </div>
-        <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-          {availableSubjects.map(subj => {
-            const active = selectedSubject === subj
-            const count = WORKSHEETS.filter(w => w.grade === selectedGrade && w.subject === subj).length
-            return (
-              <motion.button key={subj} whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
-                onClick={() => setSelectedSubject(active ? null : subj)}
-                style={{
-                  display:'flex', flexDirection:'column', alignItems:'center', gap:6,
-                  padding:'14px 20px', borderRadius:14, border:`2px solid ${active ? '#4F46E5' : '#E2E8F0'}`,
-                  background: active ? '#EEF2FF' : '#FAFAFA', cursor:'pointer',
-                  boxShadow: active ? '0 0 0 3px rgba(79,70,229,0.15)' : 'none', transition:'all 0.15s',
-                  minWidth:90,
-                }}>
-                <span style={{ fontSize:28 }}>{SUBJECT_ICONS[subj]}</span>
-                <span style={{ fontSize:12, fontWeight:700, color: active ? '#4F46E5' : '#374151' }}>{subj}</span>
-                <span style={{ fontSize:10, color:'#94A3B8' }}>{count} sheets</span>
-              </motion.button>
-            )
-          })}
-        </div>
-      </motion.div>
-
-      {/* Filter Panel */}
-      <AnimatePresence>
-        {showFilter && (
-          <motion.div initial={{ opacity:0, height:0 }} animate={{ opacity:1, height:'auto' }} exit={{ opacity:0, height:0 }}
-            style={{ overflow:'hidden', marginBottom:16 }}>
-            <div className="card" style={{ padding:20 }}>
-              <div style={{ display:'flex', gap:20, flexWrap:'wrap', alignItems:'flex-start' }}>
-                <div>
-                  <p style={{ fontSize:12, fontWeight:700, color:'#374151', marginBottom:8 }}>Complexity</p>
-                  <div style={{ display:'flex', gap:6 }}>
-                    {(['easy','medium','hard'] as WorksheetComplexity[]).map(c => {
-                      const cc = COMPLEXITY_COLORS[c]
-                      return (
-                        <button key={c} onClick={() => setSelectedComplexity(selectedComplexity === c ? null : c)}
-                          style={{
-                            padding:'6px 14px', borderRadius:8, border:`1.5px solid ${selectedComplexity === c ? cc.color : '#E2E8F0'}`,
-                            background: selectedComplexity === c ? cc.bg : '#fff', color: selectedComplexity === c ? cc.color : '#64748B',
-                            fontWeight:700, fontSize:12, cursor:'pointer',
-                          }}>
-                          {cc.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div style={{ flex:1, minWidth:200 }}>
-                  <p style={{ fontSize:12, fontWeight:700, color:'#374151', marginBottom:8 }}>Search</p>
-                  <div style={{ position:'relative' }}>
-                    <Search size={13} color="#94A3B8" style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)' }}/>
-                    <input className="input" value={search} onChange={e => setSearch(e.target.value)}
-                      placeholder="Search by topic or keyword…" style={{ paddingLeft:30, fontSize:12 }}/>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Subject tiles */}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
+        {SUBJECTS.map(subj => {
+          const active = selectedSubject === subj.slug
+          const count = classFiles[subj.slug]?.length ?? 0
+          return (
+            <motion.button key={subj.slug} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+              onClick={() => setSelectedSubject(subj.slug)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5,
+                padding: '12px 18px', borderRadius: 14, border: `2px solid ${active ? subj.color : '#E2E8F0'}`,
+                background: active ? subj.color + '12' : '#FAFAFA', cursor: 'pointer',
+                minWidth: 86, transition: 'all 0.15s',
+              }}>
+              <span style={{ fontSize: 26 }}>{subj.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: active ? subj.color : '#374151' }}>{subj.name}</span>
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 8,
+                background: count > 0 ? '#DCFCE7' : '#F1F5F9', color: count > 0 ? '#15803D' : '#94A3B8',
+              }}>
+                {count > 0 ? `${count} sheets` : 'coming soon'}
+              </span>
+            </motion.button>
+          )
+        })}
+      </div>
 
       {/* Results */}
-      <div style={{ marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <span style={{ fontSize:13, color:'#64748B', fontWeight:600 }}>
-          {filtered.length} worksheet{filtered.length !== 1 ? 's' : ''} found
-        </span>
-        {(selectedSubject || selectedComplexity || search) && (
-          <button onClick={() => { setSelectedSubject(null); setSelectedComplexity(null); setSearch('') }}
-            style={{ fontSize:12, color:'#4F46E5', background:'none', border:'none', cursor:'pointer', fontWeight:600 }}>
-            Clear all filters
+      {manifest === null ? (
+        <div className="card" style={{ padding: 40, textAlign: 'center', color: '#94A3B8', fontSize: 13 }}>
+          Loading library…
+        </div>
+      ) : files.length > 0 ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <Trophy size={15} color={subjectMeta.color} />
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: '#0F172A' }}>
+              Class {selectedClass} · {subjectMeta.name} — {files.length} worksheets
+            </span>
+            <span style={{ fontSize: 11.5, color: '#94A3B8' }}>({totalForClass} total in this class)</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(240px,1fr))', gap: 10 }}>
+            {files.map(({ file, url }) => {
+              const d = describePdf(file)
+              return (
+                <motion.a key={file} href={url} target="_blank" rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ y: -2 }}
+                  className="card"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '13px 15px',
+                    textDecoration: 'none', borderLeft: `3px solid ${subjectMeta.color}`,
+                  }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 10, background: subjectMeta.color + '15',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <FileText size={17} color={subjectMeta.color} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: '#0F172A' }}>
+                      {d.title}
+                      {d.sample && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 800, padding: '1px 6px', borderRadius: 6, background: '#FEF3C7', color: '#B45309' }}>SAMPLE</span>}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file}</div>
+                  </div>
+                  <span style={{ display: 'flex', gap: 8, flexShrink: 0, color: subjectMeta.color }}>
+                    <ExternalLink size={14} />
+                  </span>
+                </motion.a>
+              )
+            })}
+          </div>
+          <div style={{ marginTop: 14, fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Download size={13} /> Open a worksheet, then print or save it — solve on paper, olympiad style.
+          </div>
+        </>
+      ) : (
+        /* Placeholder — the slot exists, the PDFs will be uploaded separately */
+        <div className="card" style={{ padding: '44px 32px', textAlign: 'center' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 18, margin: '0 auto 16px',
+            background: subjectMeta.color + '12', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <FolderOpen size={28} color={subjectMeta.color} />
+          </div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#0F172A', marginBottom: 6 }}>
+            Class {selectedClass} · {subjectMeta.name} worksheets are being prepared
+          </div>
+          <div style={{ fontSize: 13, color: '#64748B', maxWidth: 460, margin: '0 auto 18px', lineHeight: 1.6 }}>
+            We're building 15–50 olympiad-grade worksheets per subject, the same format as
+            Class 4 Maths. They'll appear here automatically as soon as they're published.
+          </div>
+          <button onClick={() => { setSelectedClass('4'); setSelectedSubject('maths') }}
+            style={{
+              padding: '9px 18px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: '#4F46E5', color: '#fff', fontSize: 12.5, fontWeight: 700,
+            }}>
+            <Trophy size={12} style={{ verticalAlign: -2, marginRight: 6 }} />
+            See the Class 4 Maths set (available now)
           </button>
-        )}
-      </div>
-
-      <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-        <AnimatePresence mode="popLayout">
-          {filtered.length === 0 ? (
-            <motion.div key="empty" initial={{ opacity:0 }} animate={{ opacity:1 }}
-              className="card" style={{ padding:40, textAlign:'center' }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>📭</div>
-              <div style={{ fontSize:14, color:'#64748B' }}>No worksheets match your filters. Try adjusting the grade or subject.</div>
-            </motion.div>
-          ) : (
-            filtered.map(ws => (
-              <WorksheetCard key={ws.id} ws={ws} onClick={() => setOpenWs(ws)}/>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Worksheet Detail Panel */}
-      <AnimatePresence>
-        {openWs && <WorksheetDetail ws={openWs} onClose={() => setOpenWs(null)}/>}
-      </AnimatePresence>
-
+        </div>
+      )}
     </div>
   )
 }
