@@ -4,7 +4,21 @@
 // logo-full.svg) for use outside the app.
 // Palette: navy #10243F · blue #1F5FA8 · teal #159A93 · gold #F2A93B.
 
-export function LogoIcon({ size = 32 }: { size?: number }) {
+// `tile` puts the mark on a white rounded square — REQUIRED on dark surfaces
+// (the navy mortarboard disappears against dark backgrounds otherwise).
+export function LogoIcon({ size = 32, tile = false }: { size?: number; tile?: boolean }) {
+  if (tile) {
+    return (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: Math.round(size * 1.32), height: Math.round(size * 1.32),
+        borderRadius: Math.round(size * 0.34), background: '#F8FAFC', flexShrink: 0,
+        boxShadow: '0 1px 5px rgba(2,6,23,0.3)',
+      }}>
+        <LogoIcon size={size} />
+      </span>
+    )
+  }
   return (
     <svg width={size} height={size} viewBox="0 0 96 96" aria-label="Master-Kids logo">
       <path d="M10 60 L46 52 L46 86 L10 79 Z" fill="#1F5FA8" />
@@ -21,11 +35,11 @@ export function LogoIcon({ size = 32 }: { size?: number }) {
   )
 }
 
-/** Mark + MASTERKIDS wordmark. `dark` renders MASTER in white for dark backgrounds. */
+/** Mark + MASTERKIDS wordmark. `dark` renders MASTER in white and tiles the mark. */
 export function Logo({ size = 30, dark = false }: { size?: number; dark?: boolean }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: Math.round(size * 0.28) }}>
-      <LogoIcon size={size} />
+      <LogoIcon size={dark ? Math.round(size * 0.78) : size} tile={dark} />
       <span style={{
         fontWeight: 900, letterSpacing: '-0.01em', lineHeight: 1,
         fontSize: Math.round(size * 0.52),

@@ -1064,7 +1064,7 @@ export default function Login() {
           }}>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <LogoIcon size={44} />
+            <LogoIcon size={32} tile />
             <div>
               <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '-0.03em', fontFamily: FONT }}>
                 <span style={{ color: '#F1F5F9' }}>MASTER</span><span style={{ color: '#159A93' }}>KIDS</span>

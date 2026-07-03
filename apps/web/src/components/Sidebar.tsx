@@ -294,7 +294,7 @@ export default function Sidebar() {
         {/* Logo */}
         <div style={{ padding: '14px 16px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
           <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}>
-            <LogoIcon size={30} />
+            <LogoIcon size={24} tile />
             <div>
               <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: '-0.02em', lineHeight: 1 }}>
                 <span style={{ color: '#F1F5F9' }}>MASTER</span><span style={{ color: '#159A93' }}>KIDS</span>
