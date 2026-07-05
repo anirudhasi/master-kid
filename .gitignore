@@ -13,11 +13,17 @@ out/
 apps/web/public/worksheets/
 
 # Environment files — NEVER commit these
+.env
+.env.*
+!.env.example
 .env.local
 .env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Azure Functions local settings (contains secrets) — any location
+local.settings.json
 
 # Logs
 npm-debug.log*
