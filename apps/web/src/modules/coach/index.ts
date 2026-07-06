@@ -1,3 +1,4 @@
-// modules/coach — public surface. The ONLY import path other code may use.
-// Empty until this module's contracts/implementation land (see docs/modules/M4-coach.md).
-export {}
+// modules/coach — public surface of M4 Coach.
+// The ONLY import path other code may use (docs/modules/M4-coach.md).
+// Contract implementation lands in Stage 3 PR-19.
+export * from './contracts'
