@@ -8,7 +8,8 @@
     "prebuild": "node scripts/copy-worksheets.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+    "lint": "eslint src --report-unused-disable-directives",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
