@@ -1,3 +1,4 @@
-// modules/community — public surface. The ONLY import path other code may use.
-// Empty until this module's contracts/implementation land (see docs/modules/M7-community.md).
-export {}
+// modules/community — public surface of M7 Community.
+// The ONLY import path other code may use (docs/modules/M7-community.md).
+// Contract implementation lands in Stage 4.
+export * from './contracts'
