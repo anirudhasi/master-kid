@@ -1,3 +1,4 @@
-// modules/admin — public surface. The ONLY import path other code may use.
-// Empty until this module's contracts/implementation land (see docs/modules/M10-admin.md).
-export {}
+// modules/admin — public surface of M10 Admin & Flow Control.
+// The ONLY import path other code may use (docs/modules/M10-admin.md).
+// Contract implementation lands in Stage 6.
+export * from './contracts'

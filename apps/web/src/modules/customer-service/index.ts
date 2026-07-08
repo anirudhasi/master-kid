@@ -1,3 +1,4 @@
-// modules/customer-service — public surface. The ONLY import path other code may use.
-// Empty until this module's contracts/implementation land (see docs/modules/M11-customer-service.md).
-export {}
+// modules/customer-service — public surface of M11 Customer Service.
+// The ONLY import path other code may use (docs/modules/M11-customer-service.md).
+// Contract implementation lands in Stage 6.
+export * from './contracts'
