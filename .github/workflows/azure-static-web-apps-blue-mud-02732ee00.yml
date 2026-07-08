@@ -26,13 +26,10 @@ jobs:
 
       - name: Build web app
         env:
-          # Set these as GitHub repo secrets to enable admin login on Azure.
-          # (Repo → Settings → Secrets and variables → Actions.)
-          VITE_ADMIN_PHONE: ${{ secrets.VITE_ADMIN_PHONE }}
-          VITE_ADMIN_PASSWORD_HASH: ${{ secrets.VITE_ADMIN_PASSWORD_HASH }}
           # Supabase backend — when these two secrets are set, the app switches from
           # in-browser mock storage to the real Postgres backend (durable, multi-device).
           # The anon key is safe to expose (RLS-protected). Leave unset to stay in mock mode.
+          # (Admin auth is now server-side — no VITE_ADMIN_* secrets; see /api/admin.)
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
@@ -46,8 +43,6 @@ jobs:
         # "Build web app" step above. So the Vite vars must be set here too, or they
         # won't be baked into the deployed bundle.
         env:
-          VITE_ADMIN_PHONE: ${{ secrets.VITE_ADMIN_PHONE }}
-          VITE_ADMIN_PASSWORD_HASH: ${{ secrets.VITE_ADMIN_PASSWORD_HASH }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         with:
@@ -55,7 +50,10 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           app_location: "apps/web"
-          api_location: ""
+          # Deploy the SWA Functions (server-side admin gateway, AI chat, etc.).
+          # Their secrets (SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET, ...) live
+          # in the Static Web App's application settings, NEVER in the bundle.
+          api_location: "apps/web/api"
           output_location: "dist"
 
   close_pull_request_job:

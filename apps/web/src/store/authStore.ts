@@ -6,7 +6,7 @@ import { logActivity } from '@/store/activityLogStore'
 import { useAdminStore } from '@/store/adminStore'
 import { useKidsDataStore } from '@/store/kidsDataStore'
 import { useSubscriptionStore } from '@/store/subscriptionStore'
-import { ADMIN_PHONE } from '@/lib/env'
+import { fetchIsAdmin } from '@/services/adminService'
 
 export type UserRole = 'PARENT' | 'STUDENT' | 'TEACHER' | 'COACH' | 'ADMIN'
 
@@ -100,7 +100,8 @@ export interface AuthStore {
   syncKids:       () => Promise<void>
   /** Start Google OAuth (redirect). Returns an error if the backend isn't set up. */
   loginWithGoogle: () => Promise<{ ok: boolean; error?: string }>
-  adminLogin:     () => void
+  /** Re-read admin authority from the server (account role). Sets isAdmin. */
+  refreshAdminStatus: () => Promise<void>
   adminAddAccount:(phone: string, name: string, role: UserRole) => void
   adminAddChild:  (phone: string, kid: Omit<KidProfile, 'id' | 'isOnboarded'>) => void
   submitPhone:    (phone: string) => Promise<{ otp: string; locked: boolean; lockedUntil: number; error?: string }>
@@ -161,12 +162,18 @@ export const useAuthStore = create<AuthStore>()(
       // Reconcile persisted state with the real auth backend on app load.
       // Mock mode trusts the persisted store; Supabase mode trusts the live session.
       async init() {
+        // SECURITY: never trust a persisted admin flag from localStorage. Admin
+        // authority is re-derived from the server each load (refreshAdminStatus,
+        // below) and is impossible in mock mode (no backend to verify against).
+        set({ isAdmin: false })
         if (isMockAuth) return
         // Reconcile a backend session (OTP or Google OAuth) into the store. For a
         // first-time OAuth user with no local account yet, auto-provision one from
         // the Google profile so they land straight on the profile picker.
         const apply = (session: AuthSession | null) => {
           if (!session) { set({ ...BLANK_SESSION }); return }
+          // Admin authority is server-verified (account role), never assumed here.
+          void get().refreshAdminStatus()
           const id = normalizeId(session.phone)
           // Access control: a suspended account cannot enter the app.
           if (useAdminStore.getState().suspendedAccounts[id]) {
@@ -527,17 +534,9 @@ export const useAuthStore = create<AuthStore>()(
         })
       },
 
-      adminLogin() {
-        set({
-          ...BLANK_SESSION,
-          isAuthenticated: true,
-          isAdmin: true,
-          step: 'profiles',
-          role: 'ADMIN',
-          activePhone: ADMIN_PHONE ? normalizePhone(ADMIN_PHONE) : 'admin',
-          adminName: 'Administrator',
-          adminAvatar: '🛡️',
-        })
+      async refreshAdminStatus() {
+        // Server decides admin authority (account role via RLS). Never the browser.
+        set({ isAdmin: await fetchIsAdmin() })
       },
 
       adminAddAccount(phone, name, role) {
