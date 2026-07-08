@@ -1,6 +1,19 @@
 -- 017_discovery.sql — M6 Discovery: listings projection + Postgres FTS (spec §2–§3)
 -- The listings table is a READ MODEL: rebuilt from owner modules, never hand-edited.
 
+-- Immutable wrapper for the generated tsvector column. The two-arg
+-- to_tsvector('simple', ...) IS immutable, but Postgres won't accept it inlined
+-- in a generated column ("generation expression is not immutable"); wrapping it
+-- in an IMMUTABLE function is the canonical workaround.
+create or replace function public.listings_search_tsv(
+  p_title text, p_summary text, p_city text, p_subjects text[])
+returns tsvector language sql immutable as $$
+  select setweight(to_tsvector('simple', coalesce(p_title,   '')), 'A') ||
+         setweight(to_tsvector('simple', coalesce(p_summary, '')), 'B') ||
+         setweight(to_tsvector('simple', coalesce(p_city,    '')), 'C') ||
+         setweight(to_tsvector('simple', array_to_string(p_subjects, ' ')), 'A');
+$$;
+
 create table if not exists public.listings (
   id             uuid primary key default gen_random_uuid(),
   kind           text not null check (kind in ('coach','school','content')),
@@ -16,10 +29,7 @@ create table if not exists public.listings (
   activity_score integer not null default 0,
   rating         numeric(3,2),
   search         tsvector generated always as (
-                   setweight(to_tsvector('simple', coalesce(title,   '')), 'A') ||
-                   setweight(to_tsvector('simple', coalesce(summary, '')), 'B') ||
-                   setweight(to_tsvector('simple', coalesce(city,    '')), 'C') ||
-                   setweight(to_tsvector('simple', array_to_string(subjects, ' ')), 'A')
+                   public.listings_search_tsv(title, summary, city, subjects)
                  ) stored,
   updated_at     timestamptz not null default now(),
   unique (kind, ref_id)
