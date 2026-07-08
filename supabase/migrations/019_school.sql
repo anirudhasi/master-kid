@@ -146,14 +146,14 @@ create policy invites_staff_manage on public.roster_invites
 -- the caller's own phone hash (parents never query this table directly):
 create or replace function public.my_roster_invites()
 returns setof public.roster_invites language sql stable security definer
-set search_path = public as $$
+set search_path = public, extensions as $$
   select ri.* from roster_invites ri
    where ri.status = 'pending' and ri.expires_at > now()
      and ri.phone_hash = encode(digest(
            (select phone from accounts where id = auth.uid()), 'sha256'), 'hex');
 $$;
 create or replace function public.resolve_roster_invite(p_invite uuid, p_child_id uuid, p_approve boolean)
-returns boolean language plpgsql security definer set search_path = public as $$
+returns boolean language plpgsql security definer set search_path = public, extensions as $$
 declare inv record; child_rec record;
 begin
   select * into inv from roster_invites
