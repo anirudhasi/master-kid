@@ -71,10 +71,12 @@ create policy pin_owner_all on public.child_mode_pins
   for all using (account_id = auth.uid()) with check (account_id = auth.uid());
 
 -- Hashing server-side via pgcrypto (bcrypt), so the client never handles hashes.
-create extension if not exists pgcrypto;
+-- On Supabase pgcrypto lives in the `extensions` schema, so crypt()/gen_salt()
+-- below need it on the search_path (public alone can't resolve them).
+create extension if not exists pgcrypto with schema extensions;
 
 create or replace function public.set_child_pin(p_pin text)
-returns void language sql security definer set search_path = public as $$
+returns void language sql security definer set search_path = public, extensions as $$
   insert into child_mode_pins(account_id, pin_hash)
   values (auth.uid(), crypt(p_pin, gen_salt('bf')))
   on conflict (account_id) do update
@@ -82,7 +84,7 @@ returns void language sql security definer set search_path = public as $$
 $$;
 
 create or replace function public.verify_child_pin(p_pin text)
-returns boolean language sql security definer stable set search_path = public as $$
+returns boolean language sql security definer stable set search_path = public, extensions as $$
   select coalesce(
     (select pin_hash = crypt(p_pin, pin_hash) from child_mode_pins
       where account_id = auth.uid()), false);
