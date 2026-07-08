@@ -1,32 +1,65 @@
 -- ============================================================================
--- Master-Kids — Combined migration bundle: 012 → 021
+-- Master-Kids — Catch-up migration bundle: 011 → 021
 -- ============================================================================
--- Generated for one-shot application in the Supabase SQL Editor.
--- Wraps all ten migrations in a SINGLE transaction: if any statement fails,
--- NOTHING is applied (you can fix and re-run). Every statement uses
--- if-not-exists / if-exists guards, so re-running after a partial success is
--- safe too.
+-- Diagnostic (DIAGNOSE_state.sql) showed 001-010 already applied; migration
+-- 011 (wallet) was NEVER applied to this project. This bundle fills that gap
+-- (011) and then applies 012-021, all in ONE transaction: any failure rolls
+-- everything back, nothing is half-applied.
 --
 -- BEFORE RUNNING: take a backup (Supabase Dashboard -> Database -> Backups).
--- Prerequisite: migrations 001-011 already applied (they are, on this project).
 --
--- NOTE (Supabase): pgcrypto lives in the `extensions` schema; the functions
--- that use crypt()/gen_salt()/digest() set search_path = public, extensions
--- so those resolve. (Fixed after first run hit: gen_salt does not exist.)
+-- NOTE (Supabase): pgcrypto lives in the `extensions` schema; functions using
+-- crypt()/gen_salt()/digest() set search_path = public, extensions.
 --
--- What this adds (high level):
---   012 identity v2 (multi-role, hashed single-use handshake tokens, PIN table)
---   013 notifications core        014 DPDP consent records
---   015 commerce v2 (SECURITY: server-authoritative wallet, closes self-credit)
---   016 content v2 (publish workflow + legacy_id for progress continuity)
---   017 discovery listings + full-text search
---   018 community moderation + safety
---   019 school (orgs/staff/rosters/timetables; staff cannot read children)
---   020 admin (audit `details` fix + toggles + journeys + review queue)
---   021 support ticket index
+-- What this adds:
+--   011 wallet (wallets + wallet_transactions + RLS)  <-- the missing piece
+--   012 identity v2   013 notifications   014 consent   015 commerce v2
+--   016 content v2    017 discovery       018 community moderation
+--   019 school        020 admin           021 support
 -- ============================================================================
 
 begin;
+
+
+-- ####################################################################
+-- ##  011_wallet.sql
+-- ####################################################################
+
+-- 011_wallet.sql — worksheet wallet (₹100 welcome credit, ₹1 per download)
+--
+-- Every account gets a wallet seeded with 100 credits. Opening a library
+-- worksheet costs 1 credit the first time; owned sheets re-open free.
+-- MVP note: balance is maintained by the client and mirrored here (payments
+-- are simulated platform-wide); move debits into an SWA Function when real
+-- money is involved.
+--
+-- Apply: supabase db push  (or paste into the SQL editor).
+
+create table if not exists public.wallets (
+  id          uuid primary key references public.accounts(id) on delete cascade,
+  balance     integer not null default 100,
+  updated_at  timestamptz not null default now()
+);
+
+create table if not exists public.wallet_transactions (
+  id          uuid primary key default gen_random_uuid(),
+  account_id  uuid not null references public.accounts(id) on delete cascade,
+  amount      integer not null,      -- negative = spend (worksheet), positive = top-up
+  reason      text,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists wallet_tx_account_idx on public.wallet_transactions(account_id, created_at desc);
+
+alter table public.wallets enable row level security;
+alter table public.wallet_transactions enable row level security;
+
+create policy wallets_self_all on public.wallets
+  for all using (id = auth.uid()) with check (id = auth.uid());
+create policy wallet_tx_self_insert on public.wallet_transactions
+  for insert with check (account_id = auth.uid());
+create policy wallet_tx_self_select on public.wallet_transactions
+  for select using (account_id = auth.uid());
 
 
 -- ####################################################################
@@ -980,5 +1013,5 @@ create policy tickets_own_insert on public.support_tickets
 commit;
 
 -- ============================================================================
--- Done. Verify: select count(*) from public.notification_prefs; (etc.)
+-- Done. Verify: select count(*) from public.wallets;  select count(*) from public.notification_prefs;
 -- ============================================================================
