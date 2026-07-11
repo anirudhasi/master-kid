@@ -3,6 +3,10 @@
 // with service role → audit. Matches the repo's Functions v3 conventions (see api/chat).
 //
 // Required app settings: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET.
+//
+// ROUTE: /api/mk-admin (set in function.json). It cannot be /api/admin — Azure
+// Functions reserves the 'admin' route for its host administration API and a
+// function routed there silently 404s (discovered on first live deploy).
 
 const crypto = require('crypto')
 
