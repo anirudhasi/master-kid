@@ -37,7 +37,10 @@ export async function callAdmin<T = unknown>(
   const { data: s } = await supabase.auth.getSession()
   const token = s.session?.access_token
   if (!token) throw new Error('Not signed in.')
-  const res = await fetch('/api/admin', {
+  // Route is /api/mk-admin (NOT /api/admin): Azure Functions reserves the
+  // 'admin' route for its own host administration API — a function routed
+  // there silently 404s.
+  const res = await fetch('/api/mk-admin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ action, params }),
