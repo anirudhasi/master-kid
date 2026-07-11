@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Trophy, ChevronDown, ChevronRight, Calendar, Star } from 'lucide-react'
 import { useKidStore } from '@/hooks/useKidStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { defaultOlympiadExams } from '@/data/olympiadExamsCatalog'
 
 function daysUntil(dateStr: string) {

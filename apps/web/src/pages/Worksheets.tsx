@@ -4,7 +4,7 @@ import { CheckCircle2, Circle, Upload, ChevronRight, Award, Clock, Lightbulb, Ex
 import { type Worksheet } from '@/store/appStore'
 import { type AssignedSheet } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useWalletStore, WORKSHEET_COST } from '@/store/walletStore'
 import { logActivity } from '@/store/activityLogStore'
 import Resources from '@/pages/Resources'

@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, Upload, X, Plus, Trophy, CheckCircle2, Circle,
   Trash2, Share2, Users, FileText, Printer, Paperclip,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useOlympiadStore, olyKey, allSharedSets } from '@/store/olympiadStore'
 import { olympiadService } from '@/services/olympiadService'
 import {

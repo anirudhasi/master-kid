@@ -4,7 +4,7 @@ import {
   Plus, X, ChevronLeft, ChevronRight, BookOpen, HelpCircle, Compass,
   Trash2, Printer, ChevronDown, Upload, Paperclip, FileUp,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useAcademicStore, childGradeKey } from '@/store/academicStore'
 import { useAcademicContentStore, contentKey } from '@/store/academicContentStore'
 import { academicService } from '@/services/academicService'

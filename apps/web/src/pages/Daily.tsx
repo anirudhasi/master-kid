@@ -4,7 +4,7 @@ import {
   Flame, Target, Eye, Check, Gamepad2, BookOpen, Sparkles, ChevronRight,
   Trophy, Film, MapPin, CalendarDays,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useEngagementStore, todayState } from '@/store/engagementStore'
 import { buildDailyFeed, dayKey } from '@/lib/dailyFeed'
 import { GRADE_LADDER, currentGradeIndex } from '@/lib/grades'

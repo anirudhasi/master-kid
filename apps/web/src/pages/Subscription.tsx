@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, Sparkles, Crown, Gift, ShieldCheck, ChevronLeft, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { subscriptionService, PLAN_PRICING, TRIAL_DAYS } from '@/services/subscriptionService'
 import { PAYMENTS_TEST_SKIP } from '@/lib/env'
 

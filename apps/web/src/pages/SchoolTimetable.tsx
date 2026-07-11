@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Trash2, CalendarPlus, Share2, Users, X, Copy, Check, Download, Info,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { usePlannerStore } from '@/store/plannerStore'
 import {
   useTimetableStore, defaultTimetable, timetableToEvents, encodeTimetable, decodeTimetable,

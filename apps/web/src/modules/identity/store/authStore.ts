@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { authService, isMockAuth, type AuthSession } from '@/services/authService'
+import { authService, isMockAuth, type AuthSession } from '../service/authService'
 import { kidService, newKidId, isUuid } from '@/services/kidService'
 import { logActivity } from '@/store/activityLogStore'
 import { useAdminStore } from '@/store/adminStore'

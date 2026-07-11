@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Upload, X, CheckCircle, Star, Lightbulb, BookOpen, Sparkles, Wifi, WifiOff } from 'lucide-react'
 import axios from 'axios'
 import { useAppStore, type MikoKidContext } from '@/store/appStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useKidStore } from '@/hooks/useKidStore'
 
 const QUICK_CHIPS = [

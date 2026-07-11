@@ -10,7 +10,7 @@ import {
   UserPlus, X, Lock,
 } from 'lucide-react'
 import { GRADE_LADDER } from '@/lib/grades'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useSubscriptionStore } from '@/store/subscriptionStore'
 import { useStoryboardStore } from '@/store/storyboardStore'
 import { useSocialStore } from '@/store/socialStore'

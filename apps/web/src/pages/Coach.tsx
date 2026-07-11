@@ -4,7 +4,7 @@ import {
   GraduationCap, Plus, X, ChevronLeft, Copy, Check, Users, BookOpen, Target,
   MessageCircle, Trash2, Calendar, IndianRupee, CheckCircle2, Circle, Send, Share2,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import {
   useCoachStore, coursesByCoach, enrollmentsByCourse, enrollmentsByCoach, PLAN_PRICING,
   type Course, type Milestone, type Cadence, type Enrollment,

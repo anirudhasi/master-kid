@@ -1,4 +1,4 @@
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useKidsDataStore, EMPTY_KID_DATA, type AssignedSheet } from '@/store/kidsDataStore'
 import type { SyllabusChapter, Mood, OlympiadExam } from '@/store/appStore'
 

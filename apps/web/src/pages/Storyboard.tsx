@@ -4,7 +4,7 @@ import {
   Lock, Plus, Trophy, FileText, Award, Image as ImageIcon, StickyNote,
   Clock, LayoutGrid, ChevronLeft, X, Trash2, Pencil, Camera, RotateCw, Calendar,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useStoryboardStore, entriesFor, photoCountFor, PHOTO_CAP, type StoryKind, type StoryEntry } from '@/store/storyboardStore'
 import { storyboardService, type NewEntry } from '@/services/storyboardService'
 import { GRADE_LADDER, currentGradeIndex, tileState, nextUnlockLabel } from '@/lib/grades'

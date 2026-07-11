@@ -9,7 +9,7 @@ import {
   type LogEntry,
   type Mood,
 } from './appStore'
-import { type KidOnboardingData } from './authStore'
+import { type KidOnboardingData } from '@/modules/identity'
 import { chaptersFor } from '@/data/syllabusCatalog'
 import { logActivity } from '@/store/activityLogStore'
 
