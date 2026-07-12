@@ -4,7 +4,7 @@ import {
   Image as ImageIcon, Send, Award, Share2, MessageCircle, X, Trash2,
   Copy, Check, Globe,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useSocialStore, feed, reactionCount, REACTIONS, type Post } from '@/store/socialStore'
 import { socialService } from '@/services/socialService'
 import { useStoryboardStore, entriesFor, type StoryEntry } from '@/store/storyboardStore'

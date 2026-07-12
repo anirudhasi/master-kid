@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { FileText, Download, ExternalLink, FolderOpen, Trophy, Wallet, UserPlus, CheckCircle2 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useKidStore } from '@/hooks/useKidStore'
 import { useWalletStore, WORKSHEET_COST } from '@/store/walletStore'
 import { logActivity } from '@/store/activityLogStore'

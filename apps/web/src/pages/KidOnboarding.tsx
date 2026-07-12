@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronRight, ChevronLeft, Check } from 'lucide-react'
 import { LogoIcon } from '@/components/Logo'
-import { useAuthStore, type KidOnboardingData, type KidProfile } from '@/store/authStore'
+import { useAuthStore, type KidOnboardingData, type KidProfile } from '@/modules/identity'
 import { useKidsDataStore } from '@/store/kidsDataStore'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────

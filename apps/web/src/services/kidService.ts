@@ -5,7 +5,7 @@
 // all functions no-op gracefully when Supabase isn't configured.
 
 import { supabase } from '@/lib/supabase'
-import type { KidProfile } from '@/store/authStore'
+import type { KidProfile } from '@/modules/identity'
 
 const isUuid = (s: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)

@@ -4,7 +4,7 @@ import {
   Plus, ChevronLeft, ChevronRight, X, Trash2, Clock, MapPin, Bell, Repeat as RepeatIcon,
   CalendarDays, School, StickyNote, Target,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import {
   usePlannerStore, eventsForChildOn, CATEGORY_META, makeEventId, ymd, parseYmd, toMin, noteKey,
   type PlannerEvent, type EventCategory, type Repeat,

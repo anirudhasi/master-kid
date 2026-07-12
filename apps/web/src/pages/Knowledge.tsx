@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight, Eye, Check, X, RefreshCw } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useKnowledgeStore, solvedSet } from '@/store/knowledgeStore'
 import { knowledgeService } from '@/services/knowledgeService'
 import {

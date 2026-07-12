@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { Edit3, Save, Trophy, Flame, Zap, Target, BookOpen, Star, User } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useKidStore } from '@/hooks/useKidStore'
 import { getLevel } from '@/store/appStore'
 

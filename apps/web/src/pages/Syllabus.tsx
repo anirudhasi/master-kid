@@ -5,7 +5,7 @@ import { CheckCircle2, Circle, ChevronDown, ChevronRight, BookOpen, Edit3, Check
 import { type SyllabusChapter } from '@/store/appStore'
 import { chapterPct, subjectPct } from '@/store/kidsDataStore'
 import { useKidStore } from '@/hooks/useKidStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import Academic from '@/pages/Academic'
 
 const FONT = "'Nunito', 'Inter', sans-serif"

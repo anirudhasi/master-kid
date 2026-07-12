@@ -4,7 +4,7 @@ import {
   Plus, X, ChevronLeft, Trash2, Target, Sparkles, Link2, Copy, Check,
   UserPlus, ShieldCheck, Calendar,
 } from 'lucide-react'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useActivityStore, activitiesFor, type Activity } from '@/store/activityStore'
 import { activityService } from '@/services/activityService'
 import {

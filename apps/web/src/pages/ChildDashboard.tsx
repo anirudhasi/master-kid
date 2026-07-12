@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Trophy, Flame, Zap, Clock, CheckCircle2, ChevronRight, BookOpen, Calendar } from 'lucide-react'
 import { getLevel, type Mood } from '@/store/appStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 import { useKidStore } from '@/hooks/useKidStore'
 
 const MOODS: { key: Mood; emoji: string; label: string }[] = [

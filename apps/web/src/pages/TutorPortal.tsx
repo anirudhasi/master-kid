@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 
 const QUICK_TOPICS = ['Math revision', 'English reading', 'Science concepts', 'Hindi grammar', 'Problem solving']
 const QUICK_HW     = ['Finish worksheet', 'Practice flashcards', 'Read 10 pages', 'Solve 5 problems']

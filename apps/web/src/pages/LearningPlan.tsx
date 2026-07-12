@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { RefreshCw, ChevronUp, ChevronDown, Target, Trophy, ChevronRight } from 'lucide-react'
 import { useAppStore, type LearningSlot, type SlotType } from '@/store/appStore'
-import { useAuthStore } from '@/store/authStore'
+import { useAuthStore } from '@/modules/identity'
 
 const SLOT_COLORS: Record<SlotType, { bg: string; border: string; color: string; label: string }> = {
   study:    { bg:'#EEF2FF', border:'#A5B4FC', color:'#4338CA', label:'Study'     },
