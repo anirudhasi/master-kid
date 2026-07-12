@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { authService, isMockAuth, type AuthSession } from '../service/authService'
+import { syncAccountIdentity } from '../service/identity'
 import { kidService, newKidId, isUuid } from '@/services/kidService'
 import { logActivity } from '@/store/activityLogStore'
 import { useAdminStore } from '@/store/adminStore'
@@ -202,6 +203,9 @@ export const useAuthStore = create<AuthStore>()(
               adminPhotoUrl: account.adminPhotoUrl, role: 'PARENT', kids: [],
             }))
           }
+          // Backfill email/phone/name onto the accounts row (fixes the all-NULL
+          // identity row; emits account.created on first-session provisioning).
+          void syncAccountIdentity(session)
           void get().syncKids()
         }
         apply(await authService.getSession())

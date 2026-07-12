@@ -27,7 +27,7 @@ import Coach from '@/pages/Coach'
 import Admin from '@/pages/Admin'
 import Subscription from '@/pages/Subscription'
 import NotFound from '@/pages/NotFound'
-import { useAuthStore } from '@/modules/identity'
+import { useAuthStore, isAllowed, type Role } from '@/modules/identity'
 import { useKidsDataStore } from '@/store/kidsDataStore'
 import { useSubscriptionStore, isSubscriptionActive } from '@/store/subscriptionStore'
 
@@ -54,13 +54,19 @@ function AppShell() {
     }
   }, [activeKidId, kids, kidsData, initKidData])
 
-  // Guard: the Admin Console is for the platform admin only.
-  if (loc.pathname === '/admin' && !isAdmin) {
+  // Role set for the central policy check. isAdmin is server-verified (PR-5);
+  // everything else in the parent shell acts as 'parent'.
+  const actorRoles: Role[] = isAdmin ? ['parent', 'admin'] : ['parent']
+
+  // Guard: Admin Console — asks the M1 policy matrix, not a scattered role check.
+  if (loc.pathname === '/admin' && !isAllowed(actorRoles, 'manage', { kind: 'module', name: 'admin' })) {
     return <Navigate to="/parent" replace />
   }
 
-  // Guard: child-scoped routes require a selected child → otherwise the picker.
-  if (activeKidId === null && CHILD_ONLY_ROUTES.includes(loc.pathname)) {
+  // Guard: child-mode entry — requires a selected child the actor may read
+  // (M1 can(); RLS remains the real enforcement).
+  if (CHILD_ONLY_ROUTES.includes(loc.pathname) &&
+      (activeKidId === null || !isAllowed(actorRoles, 'read', { kind: 'child', childId: activeKidId }))) {
     return <Navigate to="/login" replace />
   }
 
